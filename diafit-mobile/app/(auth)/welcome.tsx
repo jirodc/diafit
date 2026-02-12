@@ -7,15 +7,39 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+import { makeRedirectUri } from 'expo-auth-session';
+import Constants from 'expo-constants';
+import { supabase } from '../../lib/supabase';
+
+WebBrowser.maybeCompleteAuthSession();
 
 const PROFILE_KEY = '@diafit_profile_complete';
+
+function parseSessionFromUrl(url: string): { access_token: string; refresh_token: string } | null {
+  try {
+    const hashIdx = url.indexOf('#');
+    if (hashIdx === -1) return null;
+    const fragment = url.substring(hashIdx + 1);
+    const params = new URLSearchParams(fragment);
+    const access_token = params.get('access_token');
+    const refresh_token = params.get('refresh_token');
+    if (access_token && refresh_token) return { access_token, refresh_token };
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 export default function WelcomeScreen() {
   const router = useRouter();
@@ -25,16 +49,147 @@ export default function WelcomeScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<'google' | 'facebook' | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  // Handle OAuth redirect when user returns from browser
+  useEffect(() => {
+    const handleDeepLink = async (event: { url: string }) => {
+      const sessionParams = parseSessionFromUrl(event.url);
+      if (!sessionParams) return;
+      try {
+        const { error } = await supabase.auth.setSession(sessionParams);
+        if (error) throw error;
+        await AsyncStorage.setItem(PROFILE_KEY, 'true');
+        router.replace('/(tabs)/home');
+      } catch (e) {
+        if (__DEV__) console.error('OAuth session error:', e);
+      }
+    };
+    const sub = Linking.addEventListener('url', handleDeepLink);
+    return () => sub.remove();
+  }, [router]);
+
+  const handleOAuthSignIn = async (provider: 'google' | 'facebook') => {
+    setErrorMessage('');
+    setOauthLoading(provider);
+    try {
+      // In Expo Go, custom scheme isn't registered → Safari can't open diafitmobile:// and shows "couldn't connect".
+      // Use default redirect (tunnel URL when using expo start --tunnel) so Safari loads a real https page.
+      const isExpoGo = Constants.appOwnership === 'expo';
+      const redirectTo = isExpoGo
+        ? makeRedirectUri({ path: 'auth/callback' })
+        : makeRedirectUri({ scheme: 'diafitmobile', path: 'auth/callback' });
+      if (__DEV__) console.log('OAuth redirect URL (add this in Supabase if needed):', redirectTo);
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo, skipBrowserRedirect: true },
+      });
+      if (error) throw error;
+      const url = data?.url;
+      if (!url) throw new Error('No OAuth URL returned');
+      const res = await WebBrowser.openAuthSessionAsync(url, redirectTo);
+      if (res.type === 'success' && res.url) {
+        const sessionParams = parseSessionFromUrl(res.url);
+        if (sessionParams) {
+          const { error: sessionError } = await supabase.auth.setSession(sessionParams);
+          if (sessionError) throw sessionError;
+          await AsyncStorage.setItem(PROFILE_KEY, 'true');
+          router.replace('/(tabs)/home');
+        }
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : `${provider} sign-in failed. Try again.`;
+      setErrorMessage(msg);
+      if (__DEV__) console.error('OAuth error:', err);
+    } finally {
+      setOauthLoading(null);
+    }
+  };
 
   const handleSubmit = async () => {
+    setErrorMessage('');
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail) {
+      setErrorMessage('Please enter your email address.');
+      return;
+    }
+    if (!trimmedPassword) {
+      setErrorMessage('Please enter your password.');
+      return;
+    }
+
     if (isSignUp) {
-      router.push({
-        pathname: '/(auth)/verify-email',
-        params: { email: email || 'your@email.com' },
-      });
-    } else {
-      await AsyncStorage.setItem(PROFILE_KEY, 'true');
-      router.replace('/(tabs)/home');
+      if (trimmedPassword.length < 6) {
+        setErrorMessage('Password must be at least 6 characters.');
+        return;
+      }
+      if (trimmedPassword !== confirmPassword.trim()) {
+        setErrorMessage('Passwords do not match.');
+        return;
+      }
+    }
+
+    setLoading(true);
+    try {
+      if (isSignUp) {
+        const { data, error } = await supabase.auth.signUp({
+          email: trimmedEmail,
+          password: trimmedPassword,
+          options: {
+            data: { full_name: '' },
+          },
+        });
+        if (error) throw error;
+        // Supabase may or may not require email confirmation depending on project settings
+        if (data.user && !data.session) {
+          // Email confirmation required – go to verify screen
+          router.push({
+            pathname: '/(auth)/verify-email',
+            params: { email: trimmedEmail },
+          });
+        } else if (data.session) {
+          // No confirmation required – mark profile and go home
+          await AsyncStorage.setItem(PROFILE_KEY, 'true');
+          router.replace('/(tabs)/home');
+        } else {
+          router.push({
+            pathname: '/(auth)/verify-email',
+            params: { email: trimmedEmail },
+          });
+        }
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: trimmedEmail,
+          password: trimmedPassword,
+        });
+        if (error) throw error;
+        if (data.session) {
+          await AsyncStorage.setItem(PROFILE_KEY, 'true');
+          router.replace('/(tabs)/home');
+        }
+      }
+    } catch (err: unknown) {
+      let message = 'Something went wrong. Please try again.';
+      if (err instanceof Error) {
+        console.error('Auth error:', err);
+        // Handle specific Supabase errors
+        if (err.message.includes('email') && err.message.includes('already')) {
+          message = 'This email is already registered. Please sign in instead.';
+        } else if (err.message.includes('password')) {
+          message = 'Invalid password. Please check and try again.';
+        } else if (err.message.includes('rate limit') || err.message.includes('too many') || err.message.includes('Email rate limit')) {
+          message = 'Email rate limit exceeded. Supabase allows only a few sign-up emails per hour. Wait about 1 hour and try again, or use a different email address.';
+        } else {
+          message = err.message;
+        }
+      }
+      setErrorMessage(message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -79,6 +234,12 @@ export default function WelcomeScreen() {
           >
             {/* White form card */}
             <View className="bg-white rounded-t-[28px] rounded-b-2xl px-6 pt-8 pb-6 shadow-lg min-h-[320px]">
+              {errorMessage ? (
+                <View className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4 flex-row items-center">
+                  <MaterialCommunityIcons name="alert-circle" size={22} color="#DC2626" />
+                  <Text className="flex-1 ml-2 text-sm text-red-700">{errorMessage}</Text>
+                </View>
+              ) : null}
               <Text className="text-sm font-medium text-gray-800 mb-2">
                 Email Address
               </Text>
@@ -165,15 +326,20 @@ export default function WelcomeScreen() {
 
               <Pressable
                 onPress={handleSubmit}
-                style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}
+                disabled={loading}
+                style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed, loading && styles.primaryButtonDisabled]}
               >
                 <LinearGradient
                   colors={['#3B82F6', '#2563EB']}
                   style={styles.primaryButtonGradient}
                 >
-                  <Text style={styles.primaryButtonText}>
-                    {isSignUp ? 'Create Account' : 'Sign In'}
-                  </Text>
+                  {loading ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.primaryButtonText}>
+                      {isSignUp ? 'Create Account' : 'Sign In'}
+                    </Text>
+                  )}
                 </LinearGradient>
               </Pressable>
 
@@ -183,16 +349,32 @@ export default function WelcomeScreen() {
                 <View className="flex-1 h-px bg-gray-200" />
               </View>
 
-              <Pressable className="flex-row items-center border border-gray-200 rounded-xl py-4 mb-3 px-4 active:opacity-90">
-                <MaterialCommunityIcons name="google" size={22} color="#EA4335" />
+              <Pressable
+                onPress={() => handleOAuthSignIn('google')}
+                disabled={!!oauthLoading}
+                className="flex-row items-center border border-gray-200 rounded-xl py-4 mb-3 px-4 active:opacity-90"
+              >
+                {oauthLoading === 'google' ? (
+                  <ActivityIndicator size="small" color="#EA4335" style={{ marginRight: 12 }} />
+                ) : (
+                  <MaterialCommunityIcons name="google" size={22} color="#EA4335" />
+                )}
                 <Text className="ml-3 text-base font-medium text-gray-800">
-                  Continue with Google
+                  {oauthLoading === 'google' ? 'Signing in...' : 'Continue with Google'}
                 </Text>
               </Pressable>
-              <Pressable className="flex-row items-center border border-gray-200 rounded-xl py-4 px-4 active:opacity-90">
-                <MaterialCommunityIcons name="facebook" size={22} color="#1877F2" />
+              <Pressable
+                onPress={() => handleOAuthSignIn('facebook')}
+                disabled={!!oauthLoading}
+                className="flex-row items-center border border-gray-200 rounded-xl py-4 px-4 active:opacity-90"
+              >
+                {oauthLoading === 'facebook' ? (
+                  <ActivityIndicator size="small" color="#1877F2" style={{ marginRight: 12 }} />
+                ) : (
+                  <MaterialCommunityIcons name="facebook" size={22} color="#1877F2" />
+                )}
                 <Text className="ml-3 text-base font-medium text-gray-800">
-                  Continue with Facebook
+                  {oauthLoading === 'facebook' ? 'Signing in...' : 'Continue with Facebook'}
                 </Text>
               </Pressable>
             </View>
@@ -246,6 +428,9 @@ const styles = StyleSheet.create({
   },
   primaryButtonPressed: {
     opacity: 0.9,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.7,
   },
   primaryButtonGradient: {
     paddingVertical: 16,
