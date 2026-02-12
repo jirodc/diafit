@@ -5,11 +5,14 @@ import {
   Pressable,
   StyleSheet,
   Platform,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
-import React, { useState } from 'react';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { supabase } from '../../lib/supabase';
 
 type Level = 'beginner' | 'intermediate' | 'advanced';
 
@@ -112,6 +115,31 @@ export default function WorkoutScreen() {
   const [activePhaseIndex, setActivePhaseIndex] = useState(0);
   const [completedPhases, setCompletedPhases] = useState<Set<number>>(new Set());
   const [isPaused, setIsPaused] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [stats, setStats] = useState({ totalMinutes: 0, totalCalories: 0, workoutCount: 0 });
+
+  const fetchStats = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('workout_logs')
+      .select('duration_minutes, calories_burned')
+      .eq('user_id', user.id);
+    if (error) {
+      if (__DEV__) console.error('workout_logs fetch error:', error);
+      return;
+    }
+    const logs = data || [];
+    setStats({
+      totalMinutes: logs.reduce((s, l) => s + (l.duration_minutes ?? 0), 0),
+      totalCalories: logs.reduce((s, l) => s + (l.calories_burned ?? 0), 0),
+      workoutCount: logs.length,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (view === 'list') fetchStats();
+  }, [view, fetchStats]);
 
   const workouts = WORKOUTS_BY_LEVEL[level];
   const levelConfig = LEVELS.find((l) => l.id === level)!;
@@ -152,14 +180,38 @@ export default function WorkoutScreen() {
   const totalPhases = selectedWorkout?.exercises.length ?? 0;
   const allDone = totalPhases > 0 && completedCount === totalPhases;
 
+  const saveWorkoutLog = async () => {
+    if (!selectedWorkout) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      Alert.alert('Error', 'You must be signed in to save.');
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.from('workout_logs').insert({
+      user_id: user.id,
+      custom_workout_name: selectedWorkout.name,
+      duration_minutes: selectedWorkout.duration,
+      calories_burned: selectedWorkout.calories,
+      completed_exercises: selectedWorkout.exercises.map((name, i) => ({ name, completed: completedPhases.has(i) })),
+      workout_date: new Date().toISOString(),
+    });
+    setSaving(false);
+    if (error) {
+      Alert.alert('Error', error.message || 'Failed to save workout.');
+      return;
+    }
+    await fetchStats();
+  };
+
   // ----- List View -----
   if (view === 'list') {
     return (
       <View style={styles.screen}>
         <LinearGradient colors={['#3B82F6', '#2563EB']} style={[styles.header, { paddingTop: insets.top + 20 }]}>
-          <Text style={styles.headerSubtitle}>Stay Active</Text>
-          <View style={styles.headerRow}>
-            <Text style={styles.headerTitle}>Recommended Workouts</Text>
+          <Text style={styles.headerSubtitle} numberOfLines={1}>Stay Active</Text>
+          <View style={[styles.headerRow, { flexWrap: 'wrap' }]}>
+            <Text style={[styles.headerTitle, { flex: 1, minWidth: 0 }]} numberOfLines={1}>Recommended Workouts</Text>
             <View style={styles.headerIcon}>
               <MaterialCommunityIcons name="dumbbell" size={24} color="#FFFFFF" />
             </View>
@@ -194,17 +246,17 @@ export default function WorkoutScreen() {
           <View style={styles.statRow}>
             <View style={[styles.statCard, { backgroundColor: '#EFF6FF' }]}>
               <MaterialCommunityIcons name="clock-outline" size={24} color="#2563EB" />
-              <Text style={styles.statValue}>0</Text>
+              <Text style={styles.statValue}>{stats.totalMinutes}</Text>
               <Text style={styles.statLabel}>Minutes</Text>
             </View>
             <View style={[styles.statCard, { backgroundColor: '#FFF7ED' }]}>
               <MaterialCommunityIcons name="fire" size={24} color="#EA580C" />
-              <Text style={styles.statValue}>0</Text>
+              <Text style={styles.statValue}>{stats.totalCalories}</Text>
               <Text style={styles.statLabel}>Calories</Text>
             </View>
             <View style={[styles.statCard, { backgroundColor: '#DCFCE7' }]}>
               <MaterialCommunityIcons name="trending-up" size={24} color="#16A34A" />
-              <Text style={styles.statValue}>0</Text>
+              <Text style={styles.statValue}>{stats.workoutCount}</Text>
               <Text style={styles.statLabel}>Workouts</Text>
             </View>
           </View>
@@ -214,8 +266,8 @@ export default function WorkoutScreen() {
           {workouts.map((workout) => (
             <View key={workout.id} style={styles.workoutCard}>
               <View style={styles.workoutCardMain}>
-                <Text style={styles.workoutCardName}>{workout.name}</Text>
-                <Text style={styles.workoutCardDesc}>{workout.description}</Text>
+                <Text style={styles.workoutCardName} numberOfLines={1}>{workout.name}</Text>
+                <Text style={styles.workoutCardDesc} numberOfLines={2}>{workout.description}</Text>
                 <View style={styles.workoutMeta}>
                   <View style={styles.workoutMetaItem}>
                     <MaterialCommunityIcons name="clock-outline" size={16} color="#2563EB" />
@@ -414,6 +466,17 @@ export default function WorkoutScreen() {
             <View style={styles.allDoneWrap}>
               <MaterialCommunityIcons name="check-circle" size={48} color="#16A34A" />
               <Text style={styles.allDoneText}>Workout completed!</Text>
+              <Pressable
+                style={[styles.startWorkoutBtn, { marginTop: 16 }]}
+                onPress={saveWorkoutLog}
+                disabled={saving}
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.startWorkoutBtnText}>Save to Log</Text>
+                )}
+              </Pressable>
             </View>
           )}
         </ScrollView>
@@ -496,7 +559,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     ...cardShadow,
   },
-  workoutCardMain: { flex: 1 },
+  workoutCardMain: { flex: 1, minWidth: 0 },
   workoutCardName: { fontSize: 16, fontWeight: '700', color: '#111827' },
   workoutCardDesc: { fontSize: 14, color: '#6B7280', marginTop: 4 },
   workoutMeta: { flexDirection: 'row', gap: 16, marginTop: 8 },

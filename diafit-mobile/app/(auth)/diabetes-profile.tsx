@@ -6,15 +6,15 @@ import {
   ScrollView,
   StyleSheet,
   Platform,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import React, { useState } from 'react';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-
-const PROFILE_KEY = '@diafit_profile_complete';
+import { supabase } from '../../lib/supabase';
 
 const diabetesTypes = [
   { id: 'type1', title: 'Type 1 Diabetes', desc: "Body doesn't produce insulin" },
@@ -29,10 +29,34 @@ export default function DiabetesProfileScreen() {
   const [selected, setSelected] = useState<string | null>(null);
   const [yearDiagnosed, setYearDiagnosed] = useState('');
   const [targetGlucose, setTargetGlucose] = useState('100');
+  const [saving, setSaving] = useState(false);
 
   const handleComplete = async () => {
-    await AsyncStorage.setItem(PROFILE_KEY, 'true');
-    router.replace('/(tabs)/home');
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      Alert.alert('Error', 'You must be signed in.');
+      return;
+    }
+    setSaving(true);
+    const target = parseInt(targetGlucose.trim(), 10) || 100;
+    const targetMin = Math.max(70, target - 25);
+    const targetMax = Math.min(180, target + 25);
+    const { error } = await supabase.from('diabetes_profiles').upsert(
+      {
+        user_id: user.id,
+        diabetes_type: selected || 'other',
+        year_diagnosed: yearDiagnosed.trim() ? parseInt(yearDiagnosed.trim(), 10) : null,
+        target_glucose_min: targetMin,
+        target_glucose_max: targetMax,
+      },
+      { onConflict: 'user_id' }
+    );
+    setSaving(false);
+    if (error) {
+      Alert.alert('Error', error.message || 'Failed to save diabetes profile.');
+      return;
+    }
+    router.replace('/');
   };
 
   return (
@@ -154,6 +178,7 @@ export default function DiabetesProfileScreen() {
           <View style={styles.buttonColumn}>
             <Pressable
               onPress={handleComplete}
+              disabled={saving}
               style={({ pressed }) => [
                 styles.primaryButton,
                 pressed && styles.primaryButtonPressed,
@@ -163,12 +188,18 @@ export default function DiabetesProfileScreen() {
                 colors={['#3B82F6', '#2563EB']}
                 style={styles.primaryButtonGradient}
               >
-                <Text style={styles.primaryButtonText}>Complete</Text>
-                <MaterialCommunityIcons
-                  name="check"
-                  size={22}
-                  color="#FFFFFF"
-                />
+                {saving ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Text style={styles.primaryButtonText}>Complete</Text>
+                    <MaterialCommunityIcons
+                      name="check"
+                      size={22}
+                      color="#FFFFFF"
+                    />
+                  </>
+                )}
               </LinearGradient>
             </Pressable>
             <Pressable

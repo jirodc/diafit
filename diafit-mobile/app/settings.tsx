@@ -5,15 +5,19 @@ import {
   Pressable,
   StyleSheet,
   Platform,
-  Modal,
   Switch,
+  Alert,
   ActivityIndicator,
 } from 'react-native';
 import React, { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../lib/supabase';
+
+const PROFILE_KEY = '@diafit_profile_complete';
 
 const cardShadow = Platform.select({
   ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
@@ -23,228 +27,199 @@ const cardShadow = Platform.select({
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [pushEnabled, setPushEnabled] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [glucoseReminders, setGlucoseReminders] = useState(true);
   const [mealReminders, setMealReminders] = useState(true);
-  const [glucoseUnit, setGlucoseUnit] = useState<'mg/dL' | 'mmol/L'>('mg/dL');
-  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [medicationReminders, setMedicationReminders] = useState(true);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const handleDeleteAccount = () => {
-    setDeleteLoading(true);
-    setTimeout(() => {
-      setDeleteLoading(false);
-      setDeleteModalVisible(false);
-      router.replace('/(auth)/welcome');
-    }, 1500);
+    Alert.alert(
+      'Delete Account',
+      'Are you sure? This will permanently delete your account and all your data. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingAccount(true);
+            try {
+              const { data, error } = await supabase.functions.invoke('delete-user');
+              if (error) throw error;
+              if (data?.error) throw new Error(data.error);
+              await AsyncStorage.removeItem(PROFILE_KEY);
+              try {
+                await supabase.auth.signOut();
+              } catch {
+                // Session may already be invalid after delete
+              }
+              router.replace('/(auth)/welcome');
+            } catch (e: unknown) {
+              const message = e instanceof Error ? e.message : 'Failed to delete account.';
+              Alert.alert(
+                'Error',
+                message + ' If you have not deployed the delete-user Edge Function, see the README in supabase/functions.'
+              );
+            } finally {
+              setDeletingAccount(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
     <View style={styles.screen}>
-      <LinearGradient colors={['#3B82F6', '#2563EB']} style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+      <LinearGradient
+        colors={['#3B82F6', '#2563EB']}
+        style={[styles.header, { paddingTop: insets.top + 16 }]}
+      >
+        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
           <MaterialCommunityIcons name="arrow-left" size={24} color="#FFFFFF" />
         </Pressable>
         <Text style={styles.headerTitle}>Settings</Text>
-        <Text style={styles.headerSubtitle}>Manage your preferences</Text>
+        <Text style={styles.headerSubtitle}>Manage your app preferences</Text>
       </LinearGradient>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]} showsVerticalScrollIndicator={false}>
-        {/* Account */}
-        <Text style={styles.sectionTitle}>Account</Text>
-        <View style={styles.card}>
-          <Pressable style={styles.row}>
-            <View style={[styles.rowIcon, { backgroundColor: '#DBEAFE' }]}>
-              <MaterialCommunityIcons name="account-outline" size={22} color="#2563EB" />
-            </View>
-            <View style={styles.rowText}>
-              <Text style={styles.rowLabel}>Personal Information</Text>
-              <Text style={styles.rowSub}>Name, email, phone number</Text>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={24} color="#9CA3AF" />
-          </Pressable>
-          <Pressable style={[styles.row, styles.rowBorder]}>
-            <View style={[styles.rowIcon, { backgroundColor: '#DCFCE7' }]}>
-              <MaterialCommunityIcons name="water-outline" size={22} color="#16A34A" />
-            </View>
-            <View style={styles.rowText}>
-              <Text style={styles.rowLabel}>Health Profile</Text>
-              <Text style={styles.rowSub}>Age, weight, diabetes type</Text>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={24} color="#9CA3AF" />
-          </Pressable>
-        </View>
-
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Notifications */}
-        <Text style={styles.sectionTitle}>Notifications</Text>
-        <View style={styles.card}>
-          <View style={styles.row}>
-            <View style={[styles.rowIcon, { backgroundColor: '#EDE9FE' }]}>
-              <MaterialCommunityIcons name="bell-outline" size={22} color="#7C3AED" />
+        <View style={[styles.card, cardShadow]}>
+          <Text style={styles.sectionTitle}>Notifications</Text>
+          <View style={styles.settingRow}>
+            <View style={styles.settingLeft}>
+              <MaterialCommunityIcons name="bell-outline" size={22} color="#374151" />
+              <Text style={styles.settingLabel}>Enable Notifications</Text>
             </View>
-            <View style={styles.rowText}>
-              <Text style={styles.rowLabel}>Push Notifications</Text>
-              <Text style={styles.rowSub}>Enable all notifications</Text>
-            </View>
-            <Switch value={pushEnabled} onValueChange={setPushEnabled} trackColor={{ true: '#3B82F6' }} thumbColor="#FFFFFF" />
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={setNotificationsEnabled}
+              trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}
+              thumbColor="#FFFFFF"
+            />
           </View>
-          <View style={[styles.row, styles.rowBorder]}>
-            <View style={[styles.rowIcon, { backgroundColor: '#DBEAFE' }]}>
-              <MaterialCommunityIcons name="water-outline" size={22} color="#2563EB" />
-            </View>
-            <View style={styles.rowText}>
-              <Text style={styles.rowLabel}>Glucose Reminders</Text>
-              <Text style={styles.rowSub}>Remind to check glucose</Text>
-            </View>
-            <Switch value={glucoseReminders} onValueChange={setGlucoseReminders} trackColor={{ true: '#3B82F6' }} thumbColor="#FFFFFF" />
-          </View>
-          <View style={styles.row}>
-            <View style={[styles.rowIcon, { backgroundColor: '#FFF7ED' }]}>
-              <MaterialCommunityIcons name="bell-outline" size={22} color="#EA580C" />
-            </View>
-            <View style={styles.rowText}>
-              <Text style={styles.rowLabel}>Meal Reminders</Text>
-              <Text style={styles.rowSub}>Remind to log meals</Text>
-            </View>
-            <Switch value={mealReminders} onValueChange={setMealReminders} trackColor={{ true: '#3B82F6' }} thumbColor="#FFFFFF" />
-          </View>
+          {notificationsEnabled && (
+            <>
+              <View style={styles.settingRow}>
+                <View style={styles.settingLeft}>
+                  <MaterialCommunityIcons name="water" size={22} color="#3B82F6" />
+                  <Text style={styles.settingLabel}>Glucose Reminders</Text>
+                </View>
+                <Switch
+                  value={glucoseReminders}
+                  onValueChange={setGlucoseReminders}
+                  trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+              <View style={styles.settingRow}>
+                <View style={styles.settingLeft}>
+                  <MaterialCommunityIcons name="silverware-fork-knife" size={22} color="#EA580C" />
+                  <Text style={styles.settingLabel}>Meal Reminders</Text>
+                </View>
+                <Switch
+                  value={mealReminders}
+                  onValueChange={setMealReminders}
+                  trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+              <View style={styles.settingRow}>
+                <View style={styles.settingLeft}>
+                  <MaterialCommunityIcons name="pill" size={22} color="#7C3AED" />
+                  <Text style={styles.settingLabel}>Medication Reminders</Text>
+                </View>
+                <Switch
+                  value={medicationReminders}
+                  onValueChange={setMedicationReminders}
+                  trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+            </>
+          )}
         </View>
 
-        {/* Preferences */}
-        <Text style={styles.sectionTitle}>Preferences</Text>
-        <View style={styles.card}>
-          <View style={styles.row}>
-            <View style={[styles.rowIcon, { backgroundColor: '#EDE9FE' }]}>
-              <MaterialCommunityIcons name="weather-night" size={22} color="#5B21B6" />
+        {/* App Preferences */}
+        <View style={[styles.card, cardShadow]}>
+          <Text style={styles.sectionTitle}>App Preferences</Text>
+          <Pressable style={styles.settingRow}>
+            <View style={styles.settingLeft}>
+              <MaterialCommunityIcons name="theme-light-dark" size={22} color="#374151" />
+              <Text style={styles.settingLabel}>Theme</Text>
             </View>
-            <View style={styles.rowText}>
-              <Text style={styles.rowLabel}>Dark Mode</Text>
-              <Text style={styles.rowSub}>Coming soon</Text>
+            <View style={styles.settingRight}>
+              <Text style={styles.settingValue}>Light</Text>
+              <MaterialCommunityIcons name="chevron-right" size={22} color="#9CA3AF" />
             </View>
-            <Switch value={false} disabled trackColor={{ false: '#E5E7EB' }} thumbColor="#9CA3AF" />
-          </View>
-          <View style={[styles.row, styles.rowBorder]}>
-            <View style={[styles.rowIcon, { backgroundColor: '#FCE7F3' }]}>
-              <MaterialCommunityIcons name="water-outline" size={22} color="#DB2777" />
+          </Pressable>
+          <Pressable style={styles.settingRow}>
+            <View style={styles.settingLeft}>
+              <MaterialCommunityIcons name="translate" size={22} color="#374151" />
+              <Text style={styles.settingLabel}>Language</Text>
             </View>
-            <View style={styles.rowText}>
-              <Text style={styles.rowLabel}>Glucose Units</Text>
-              <Text style={styles.rowSub}>Choose your preferred unit</Text>
+            <View style={styles.settingRight}>
+              <Text style={styles.settingValue}>English</Text>
+              <MaterialCommunityIcons name="chevron-right" size={22} color="#9CA3AF" />
             </View>
-          </View>
-          <View style={styles.unitRow}>
-            <Pressable
-              style={[styles.unitBtn, glucoseUnit === 'mg/dL' && styles.unitBtnActive]}
-              onPress={() => setGlucoseUnit('mg/dL')}
-            >
-              <Text style={[styles.unitBtnText, glucoseUnit === 'mg/dL' && styles.unitBtnTextActive]}>mg/dL</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.unitBtn, glucoseUnit === 'mmol/L' && styles.unitBtnActive]}
-              onPress={() => setGlucoseUnit('mmol/L')}
-            >
-              <Text style={[styles.unitBtnText, glucoseUnit === 'mmol/L' && styles.unitBtnTextActive]}>mmol/L</Text>
-            </Pressable>
-          </View>
-          <Pressable style={styles.row}>
-            <View style={[styles.rowIcon, { backgroundColor: '#DCFCE7' }]}>
-              <MaterialCommunityIcons name="earth" size={22} color="#16A34A" />
-            </View>
-            <View style={styles.rowText}>
-              <Text style={styles.rowLabel}>Language</Text>
-              <Text style={styles.rowSub}>English (US)</Text>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={24} color="#9CA3AF" />
           </Pressable>
         </View>
 
-        {/* Privacy & Security */}
-        <Text style={styles.sectionTitle}>Privacy & Security</Text>
-        <View style={styles.card}>
-          <Pressable style={styles.row}>
-            <View style={[styles.rowIcon, { backgroundColor: '#DCFCE7' }]}>
-              <MaterialCommunityIcons name="shield-check-outline" size={22} color="#16A34A" />
+        {/* Data & Privacy */}
+        <View style={[styles.card, cardShadow]}>
+          <Text style={styles.sectionTitle}>Data & Privacy</Text>
+          <Pressable style={styles.settingRow}>
+            <View style={styles.settingLeft}>
+              <MaterialCommunityIcons name="download" size={22} color="#374151" />
+              <Text style={styles.settingLabel}>Export Data</Text>
             </View>
-            <View style={styles.rowText}>
-              <Text style={styles.rowLabel}>Privacy Policy</Text>
-              <Text style={styles.rowSub}>Read our privacy policy</Text>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={24} color="#9CA3AF" />
+            <MaterialCommunityIcons name="chevron-right" size={22} color="#9CA3AF" />
           </Pressable>
-          <Pressable style={[styles.row, styles.rowBorder]}>
-            <View style={[styles.rowIcon, { backgroundColor: '#DBEAFE' }]}>
-              <MaterialCommunityIcons name="download-outline" size={22} color="#2563EB" />
-            </View>
-            <View style={styles.rowText}>
-              <Text style={styles.rowLabel}>Export Data</Text>
-              <Text style={styles.rowSub}>Download your health data</Text>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={24} color="#9CA3AF" />
-          </Pressable>
-        </View>
-
-        {/* Danger Zone */}
-        <Text style={[styles.sectionTitle, { color: '#DC2626' }]}>Danger Zone</Text>
-        <View style={[styles.card, styles.dangerCard]}>
-          <Pressable style={styles.row} onPress={() => setDeleteModalVisible(true)}>
-            <View style={[styles.rowIcon, { backgroundColor: '#FEE2E2' }]}>
+          <Pressable
+            style={styles.settingRow}
+            onPress={handleDeleteAccount}
+            disabled={deletingAccount}
+          >
+            <View style={styles.settingLeft}>
               <MaterialCommunityIcons name="delete-outline" size={22} color="#DC2626" />
+              <Text style={[styles.settingLabel, { color: '#DC2626' }]}>Delete Account</Text>
             </View>
-            <View style={styles.rowText}>
-              <Text style={[styles.rowLabel, { color: '#DC2626' }]}>Delete Account</Text>
-              <Text style={styles.rowSub}>Permanently delete your account</Text>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={24} color="#9CA3AF" />
+            {deletingAccount ? (
+              <ActivityIndicator size="small" color="#DC2626" />
+            ) : (
+              <MaterialCommunityIcons name="chevron-right" size={22} color="#DC2626" />
+            )}
           </Pressable>
         </View>
 
-        <Text style={styles.footer}>Diafit v1.0.0</Text>
-        <Text style={styles.footerSub}>© 2026 Diafit. All rights reserved.</Text>
-      </ScrollView>
-
-      {/* Delete Account Modal */}
-      <Modal visible={deleteModalVisible} transparent animationType="fade">
-        <Pressable style={styles.modalOverlay} onPress={() => !deleteLoading && setDeleteModalVisible(false)}>
-          <Pressable style={styles.deleteModalCard} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.deleteIconWrap}>
-              <MaterialCommunityIcons name="alert" size={48} color="#FFFFFF" />
-            </View>
-            <Text style={styles.deleteTitle}>Delete Account?</Text>
-            <Text style={styles.deleteMessage}>
-              Are you sure you want to delete your account? All your health data, workout history, and personal information will be permanently deleted. This action cannot be undone.
-            </Text>
-            <View style={styles.deleteActions}>
-              <Pressable
-                style={styles.deleteCancelBtn}
-                onPress={() => !deleteLoading && setDeleteModalVisible(false)}
-                disabled={deleteLoading}
-              >
-                <Text style={styles.deleteCancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                style={styles.deleteConfirmBtn}
-                onPress={handleDeleteAccount}
-                disabled={deleteLoading}
-              >
-                {deleteLoading ? (
-                  <>
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                    <Text style={styles.deleteConfirmText}>Loading...</Text>
-                  </>
-                ) : (
-                  <Text style={styles.deleteConfirmText}>Delete Account</Text>
-                )}
-              </Pressable>
-            </View>
+        {/* About */}
+        <View style={[styles.card, cardShadow]}>
+          <Text style={styles.sectionTitle}>About</Text>
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Version</Text>
+            <Text style={styles.settingValue}>1.0.0</Text>
+          </View>
+          <Pressable style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Terms of Service</Text>
+            <MaterialCommunityIcons name="chevron-right" size={22} color="#9CA3AF" />
           </Pressable>
-        </Pressable>
-      </Modal>
+          <Pressable style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Privacy Policy</Text>
+            <MaterialCommunityIcons name="chevron-right" size={22} color="#9CA3AF" />
+          </Pressable>
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F3F4F6' },
+  screen: { flex: 1, backgroundColor: '#F5F5F5' },
   header: {
     paddingHorizontal: 20,
     paddingBottom: 20,
@@ -260,48 +235,60 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 12,
   },
-  headerTitle: { fontSize: 24, fontWeight: '700', color: '#FFFFFF' },
-  headerSubtitle: { fontSize: 14, color: 'rgba(255,255,255,0.9)', marginTop: 4 },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
+    marginTop: 4,
+  },
   scroll: { flex: 1 },
   scrollContent: { padding: 20, paddingTop: 24 },
-  sectionTitle: { fontSize: 13, fontWeight: '600', color: '#6B7280', marginBottom: 10, marginTop: 8 },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 4,
-    ...cardShadow,
-  },
-  row: { flexDirection: 'row', alignItems: 'center', padding: 14 },
-  rowBorder: { borderTopWidth: 1, borderTopColor: '#F3F4F6' },
-  rowIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
-  rowText: { flex: 1 },
-  rowLabel: { fontSize: 16, fontWeight: '600', color: '#111827' },
-  rowSub: { fontSize: 13, color: '#6B7280', marginTop: 2 },
-  unitRow: { flexDirection: 'row', gap: 12, padding: 14, paddingTop: 0 },
-  unitBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: '#F3F4F6', alignItems: 'center' },
-  unitBtnActive: { backgroundColor: '#2563EB' },
-  unitBtnText: { fontSize: 15, fontWeight: '600', color: '#6B7280' },
-  unitBtnTextActive: { color: '#FFFFFF' },
-  dangerCard: { borderWidth: 1, borderColor: '#FECACA' },
-  footer: { fontSize: 12, color: '#9CA3AF', textAlign: 'center', marginTop: 24 },
-  footerSub: { fontSize: 11, color: '#9CA3AF', textAlign: 'center', marginTop: 4 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  deleteModalCard: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, width: '100%', maxWidth: 360 },
-  deleteIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#DC2626',
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
+    padding: 8,
     marginBottom: 16,
   },
-  deleteTitle: { fontSize: 20, fontWeight: '700', color: '#111827', textAlign: 'center', marginBottom: 12 },
-  deleteMessage: { fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 22, marginBottom: 24 },
-  deleteActions: { flexDirection: 'row', gap: 12 },
-  deleteCancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center' },
-  deleteCancelText: { fontSize: 16, fontWeight: '600', color: '#374151' },
-  deleteConfirmBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#DC2626', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
-  deleteConfirmText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#6B7280',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  settingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  settingLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#111827',
+  },
+  settingRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  settingValue: {
+    fontSize: 16,
+    color: '#6B7280',
+  },
 });

@@ -61,8 +61,7 @@ export default function WelcomeScreen() {
       try {
         const { error } = await supabase.auth.setSession(sessionParams);
         if (error) throw error;
-        await AsyncStorage.setItem(PROFILE_KEY, 'true');
-        router.replace('/(tabs)/home');
+        router.replace('/');
       } catch (e) {
         if (__DEV__) console.error('OAuth session error:', e);
       }
@@ -95,8 +94,7 @@ export default function WelcomeScreen() {
         if (sessionParams) {
           const { error: sessionError } = await supabase.auth.setSession(sessionParams);
           if (sessionError) throw sessionError;
-          await AsyncStorage.setItem(PROFILE_KEY, 'true');
-          router.replace('/(tabs)/home');
+          router.replace('/');
         }
       }
     } catch (err: unknown) {
@@ -152,9 +150,7 @@ export default function WelcomeScreen() {
             params: { email: trimmedEmail },
           });
         } else if (data.session) {
-          // No confirmation required – mark profile and go home
-          await AsyncStorage.setItem(PROFILE_KEY, 'true');
-          router.replace('/(tabs)/home');
+          router.replace('/');
         } else {
           router.push({
             pathname: '/(auth)/verify-email',
@@ -168,8 +164,7 @@ export default function WelcomeScreen() {
         });
         if (error) throw error;
         if (data.session) {
-          await AsyncStorage.setItem(PROFILE_KEY, 'true');
-          router.replace('/(tabs)/home');
+          router.replace('/');
         }
       }
     } catch (err: unknown) {

@@ -17,6 +17,9 @@ export default function TabsLayout() {
           borderTopColor: '#E5E7EB',
           borderTopLeftRadius: 24,
           borderTopRightRadius: 24,
+          height: 70,
+          paddingBottom: 8,
+          paddingTop: 8,
         },
       }}
     >

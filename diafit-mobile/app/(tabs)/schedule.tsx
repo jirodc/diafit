@@ -1,7 +1,6 @@
 import {
   View,
   Text,
-  ScrollView,
   Pressable,
   StyleSheet,
   Platform,
@@ -9,11 +8,36 @@ import {
   Modal,
   TextInput,
   KeyboardAvoidingView,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
-import React, { useState } from 'react';
+import { ScrollView } from 'react-native-gesture-handler';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { supabase } from '../../lib/supabase';
+import TimePicker from '../../components/TimePicker';
+import {
+  requestNotificationPermissions,
+  scheduleTaskNotifications,
+  cancelTaskNotifications,
+  type ScheduledTask,
+} from '../../lib/notifications';
+
+function getDayIndexForDate(date: Date): number {
+  const d = date.getDay();
+  return d === 0 ? 6 : d - 1;
+}
+
+function formatDateLabel(date: Date): string {
+  const options: Intl.DateTimeFormatOptions = {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  };
+  return date.toLocaleDateString(undefined, options);
+}
 
 const DAYS_SHORT = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const DAYS_FULL = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -41,131 +65,258 @@ interface Task {
   days: boolean[]; // Array of 7 booleans for each day
 }
 
-const initialTasks: Task[] = [
-  {
-    id: '1',
-    name: 'Breakfast',
-    time: '8:00 AM',
-    type: 'meal',
-    enabled: true,
-    days: [true, true, true, true, true, true, true],
-  },
-  {
-    id: '2',
-    name: 'Metformin 500mg',
-    time: '8:30 AM',
-    type: 'medication',
-    enabled: true,
-    days: [true, true, true, true, true, true, true],
-  },
-  {
-    id: '3',
-    name: 'Mid-Morning Snack',
-    time: '10:30 AM',
-    type: 'meal',
-    enabled: false,
-    days: [true, true, true, true, true, false, false],
-  },
-  {
-    id: '4',
-    name: 'Lunch',
-    time: '12:30 PM',
-    type: 'meal',
-    enabled: true,
-    days: [true, true, true, true, true, true, true],
-  },
-  {
-    id: '5',
-    name: 'Insulin',
-    time: '12:45 PM',
-    type: 'medication',
-    enabled: true,
-    days: [true, true, true, true, true, true, true],
-  },
-  {
-    id: '6',
-    name: 'Afternoon Snack',
-    time: '3:00 PM',
-    type: 'meal',
-    enabled: false,
-    days: [true, true, true, true, true, false, false],
-  },
-  {
-    id: '7',
-    name: 'Dinner',
-    time: '6:30 PM',
-    type: 'meal',
-    enabled: true,
-    days: [true, true, true, true, true, true, true],
-  },
-  {
-    id: '8',
-    name: 'Metformin 500mg',
-    time: '7:00 PM',
-    type: 'medication',
-    enabled: true,
-    days: [true, true, true, true, true, true, true],
-  },
-];
+function mapTaskFromRow(r: {
+  id: string;
+  name: string;
+  time: string;
+  task_type: string;
+  enabled: boolean;
+  repeat_days: boolean[] | null;
+}): Task {
+  const days = r.repeat_days && r.repeat_days.length >= 7
+    ? r.repeat_days
+    : Array(7).fill(true);
+  return {
+    id: r.id,
+    name: r.name,
+    time: r.time,
+    type: r.task_type as 'meal' | 'medication',
+    enabled: r.enabled ?? true,
+    days,
+  };
+}
 
 export default function ScheduleScreen() {
   const insets = useSafeAreaInsets();
   const [viewMode, setViewMode] = useState<'daily' | 'monthly'>('monthly');
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 1, 6)); // February 2026, day 6
-  const [selectedDay, setSelectedDay] = useState(6);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDay, setSelectedDay] = useState(new Date().getDate());
+  const [viewDate, setViewDate] = useState<Date | null>(null);
 
-  // Create task modal state
   const [newTaskName, setNewTaskName] = useState('');
-  const [newTaskTime, setNewTaskTime] = useState('');
+  const [newTaskTime, setNewTaskTime] = useState('8:00 AM');
   const [newTaskDays, setNewTaskDays] = useState<boolean[]>(Array(7).fill(false));
   const [newTaskType, setNewTaskType] = useState<'meal' | 'medication'>('meal');
 
-  const toggleTask = (taskId: string) => {
+  const fetchTasks = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('scheduled_tasks')
+      .select('id, name, time, task_type, enabled, repeat_days')
+      .eq('user_id', user.id)
+      .order('time');
+    if (error) {
+      if (__DEV__) console.error('scheduled_tasks fetch error:', error);
+      return;
+    }
+    const fetchedTasks = (data || []).map(mapTaskFromRow);
+    setTasks(fetchedTasks);
+    
+    // Schedule notifications for all enabled tasks
+    for (const task of fetchedTasks) {
+      if (task.enabled) {
+        await scheduleTaskNotifications({
+          id: task.id,
+          name: task.name,
+          time: task.time,
+          repeatDays: task.days,
+          enabled: task.enabled,
+          taskType: task.type,
+        });
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      // Request notification permissions on mount
+      const hasPermission = await requestNotificationPermissions();
+      if (!hasPermission && __DEV__) {
+        console.warn('Notification permissions not granted');
+      }
+      
+      setLoading(true);
+      await fetchTasks();
+      if (mounted) setLoading(false);
+    })();
+    return () => { mounted = false; };
+  }, [fetchTasks]);
+
+  const toggleTask = async (taskId: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    setSaving(true);
+    const newEnabled = !task.enabled;
+    const { error } = await supabase
+      .from('scheduled_tasks')
+      .update({ enabled: newEnabled })
+      .eq('id', taskId)
+      .eq('user_id', user.id);
+    setSaving(false);
+    if (error) {
+      if (__DEV__) console.error('toggle task error:', error);
+      return;
+    }
+    const updatedTask = { ...task, enabled: newEnabled };
     setTasks((prev) =>
-      prev.map((task) =>
-        task.id === taskId ? { ...task, enabled: !task.enabled } : task
-      )
+      prev.map((t) => (t.id === taskId ? updatedTask : t))
     );
+    
+    // Update notifications
+    await scheduleTaskNotifications({
+      id: updatedTask.id,
+      name: updatedTask.name,
+      time: updatedTask.time,
+      repeatDays: updatedTask.days,
+      enabled: updatedTask.enabled,
+      taskType: updatedTask.type,
+    });
   };
 
-  const toggleDay = (taskId: string, dayIndex: number) => {
+  const toggleDay = async (taskId: string, dayIndex: number) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    const newDays = [...task.days];
+    newDays[dayIndex] = !newDays[dayIndex];
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from('scheduled_tasks')
+      .update({ repeat_days: newDays })
+      .eq('id', taskId)
+      .eq('user_id', user.id);
+    setSaving(false);
+    if (error) {
+      if (__DEV__) console.error('toggle day error:', error);
+      return;
+    }
+    const updatedTask = { ...task, days: newDays };
     setTasks((prev) =>
-      prev.map((task) => {
-        if (task.id === taskId) {
-          const newDays = [...task.days];
-          newDays[dayIndex] = !newDays[dayIndex];
-          return { ...task, days: newDays };
-        }
-        return task;
-      })
+      prev.map((t) => (t.id === taskId ? updatedTask : t))
     );
+    
+    // Update notifications
+    if (updatedTask.enabled) {
+      await scheduleTaskNotifications({
+        id: updatedTask.id,
+        name: updatedTask.name,
+        time: updatedTask.time,
+        repeatDays: updatedTask.days,
+        enabled: updatedTask.enabled,
+        taskType: updatedTask.type,
+      });
+    }
   };
 
   const toggleNewTaskDay = (dayIndex: number) => {
     const newDays = [...newTaskDays];
-    newDays[dayIndex] = !newDays[dayIndex];
+    newDays[dayIndex] = !newTaskDays[dayIndex];
     setNewTaskDays(newDays);
   };
 
-  const handleCreateTask = () => {
-    if (newTaskName.trim() && newTaskTime.trim()) {
-      const newTask: Task = {
-        id: Date.now().toString(),
-        name: newTaskName,
-        time: newTaskTime,
-        type: newTaskType,
-        enabled: true,
-        days: newTaskDays,
-      };
-      setTasks([...tasks, newTask]);
-      setShowCreateModal(false);
-      setNewTaskName('');
-      setNewTaskTime('');
-      setNewTaskDays(Array(7).fill(false));
-      setNewTaskType('meal');
+  const deleteTask = async (taskId: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from('scheduled_tasks')
+      .delete()
+      .eq('id', taskId)
+      .eq('user_id', user.id);
+    setSaving(false);
+    if (error) {
+      if (__DEV__) console.error('delete task error:', error);
+      Alert.alert('Error', 'Could not delete task.');
+      return;
     }
+    await cancelTaskNotifications(taskId);
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+  };
+
+  const handleTaskLongPress = (task: Task) => {
+    Alert.alert(
+      'Delete Task',
+      `Remove "${task.name}" from your schedule?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => deleteTask(task.id) },
+      ]
+    );
+  };
+
+  const getTasksForSelectedDate = (): Task[] => {
+    const date = viewDate || new Date();
+    const dayIndex = getDayIndexForDate(date);
+    return tasks
+      .filter((t) => t.enabled && t.days[dayIndex])
+      .sort((a, b) => {
+        const parse = (s: string) => {
+          const m = s.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+          if (!m) return 0;
+          let h = parseInt(m[1], 10);
+          if ((m[3] || '').toLowerCase() === 'pm' && h < 12) h += 12;
+          if ((m[3] || '').toLowerCase() !== 'pm' && h === 12) h = 0;
+          return h * 60 + parseInt(m[2], 10);
+        };
+        return parse(a.time) - parse(b.time);
+      });
+  };
+
+  const handleCreateTask = async () => {
+    if (!newTaskName.trim() || !newTaskTime.trim()) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      Alert.alert('Error', 'You must be signed in to create tasks.');
+      return;
+    }
+    setSaving(true);
+    const hasAnyDay = newTaskDays.some(Boolean);
+    const repeatDays = hasAnyDay ? newTaskDays : Array(7).fill(true);
+    const { data, error } = await supabase
+      .from('scheduled_tasks')
+      .insert({
+        user_id: user.id,
+        name: newTaskName.trim(),
+        task_type: newTaskType,
+        time: newTaskTime.trim(),
+        enabled: true,
+        repeat_days: repeatDays,
+      })
+      .select('id, name, time, task_type, enabled, repeat_days')
+      .single();
+    setSaving(false);
+    if (error) {
+      Alert.alert('Error', error.message || 'Failed to create task.');
+      return;
+    }
+    if (data) {
+      const newTask = mapTaskFromRow(data);
+      setTasks((prev) => [...prev, newTask]);
+      
+      // Schedule notifications for the new task
+      await scheduleTaskNotifications({
+        id: newTask.id,
+        name: newTask.name,
+        time: newTask.time,
+        repeatDays: newTask.days,
+        enabled: newTask.enabled,
+        taskType: newTask.type,
+      });
+    }
+    setShowCreateModal(false);
+    setNewTaskName('');
+    setNewTaskTime('8:00 AM');
+    setNewTaskDays(Array(7).fill(false));
+    setNewTaskType('meal');
   };
 
   const navigateMonth = (direction: 'prev' | 'next') => {
@@ -215,7 +366,7 @@ export default function ScheduleScreen() {
           <Pressable onPress={() => navigateMonth('prev')}>
             <MaterialCommunityIcons name="chevron-left" size={24} color="#374151" />
           </Pressable>
-          <Text className="text-lg font-bold text-gray-900">
+          <Text className="text-lg font-bold text-gray-900" numberOfLines={1}>
             {MONTHS[month]} {year}
           </Text>
           <Pressable onPress={() => navigateMonth('next')}>
@@ -243,7 +394,11 @@ export default function ScheduleScreen() {
             return (
               <Pressable
                 key={day}
-                onPress={() => setSelectedDay(day)}
+                onPress={() => {
+                  setSelectedDay(day);
+                  setViewDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), day));
+                  setViewMode('daily');
+                }}
                 style={[styles.calendarDay, isSelected && styles.calendarDaySelected]}
               >
                 <Text
@@ -287,7 +442,10 @@ export default function ScheduleScreen() {
         {/* Segmented control */}
         <View style={styles.segmentedControl}>
           <Pressable
-            onPress={() => setViewMode('daily')}
+            onPress={() => {
+              setViewMode('daily');
+              if (!viewDate) setViewDate(new Date());
+            }}
             style={[
               styles.segment,
               viewMode === 'daily' && styles.segmentActive,
@@ -333,7 +491,11 @@ export default function ScheduleScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {viewMode === 'monthly' ? (
+        {loading ? (
+          <View style={{ padding: 24, alignItems: 'center' }}>
+            <ActivityIndicator size="small" color="#3B82F6" />
+          </View>
+        ) : viewMode === 'monthly' ? (
           <>
             {renderCalendar()}
             {/* Task Legend */}
@@ -348,68 +510,88 @@ export default function ScheduleScreen() {
             </View>
           </>
         ) : (
-          /* Daily View - Task list */
-          tasks.map((task) => (
-            <View key={task.id} style={styles.taskCard}>
-              {/* Icon */}
-              <View
-                style={[
-                  styles.iconContainer,
-                  {
-                    backgroundColor:
-                      task.type === 'meal' ? '#FFF4E6' : '#EFF6FF',
-                  },
-                ]}
-              >
-                <MaterialCommunityIcons
-                  name={task.type === 'meal' ? 'silverware-fork-knife' : 'pill'}
-                  size={24}
-                  color={task.type === 'meal' ? '#EA580C' : '#3B82F6'}
-                />
-              </View>
-
-              {/* Task info */}
-              <View className="flex-1 ml-4">
-                <Text className="text-base font-bold text-gray-900">{task.name}</Text>
-                <View className="flex-row items-center mt-1">
-                  <MaterialCommunityIcons name="clock-outline" size={14} color="#6B7280" />
-                  <Text className="text-sm text-gray-600 ml-1">{task.time}</Text>
-                </View>
-
-                {/* Day buttons */}
-                <View className="flex-row gap-2 mt-3">
-                  {DAYS_SHORT.map((day, dayIndex) => (
-                    <Pressable
-                      key={dayIndex}
-                      onPress={() => toggleDay(task.id, dayIndex)}
-                      style={[
-                        styles.dayButton,
-                        task.days[dayIndex] && styles.dayButtonActive,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.dayButtonText,
-                          task.days[dayIndex] && styles.dayButtonTextActive,
-                        ]}
-                      >
-                        {day}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-
-              {/* Toggle switch */}
-              <Switch
-                value={task.enabled}
-                onValueChange={() => toggleTask(task.id)}
-                trackColor={{ false: '#D1D5DB', true: '#3B82F6' }}
-                thumbColor="#FFFFFF"
-                ios_backgroundColor="#D1D5DB"
-              />
+          /* Daily View - Tasks for selected date */
+          <>
+            <View style={styles.dailyViewHeader}>
+              <Text className="text-sm text-gray-500">Tasks for</Text>
+              <Text className="text-xl font-bold text-gray-900 mt-0.5">
+                {formatDateLabel(viewDate || new Date())}
+              </Text>
             </View>
-          ))
+            {getTasksForSelectedDate().length === 0 ? (
+              <View style={styles.emptyDaily}>
+                <MaterialCommunityIcons name="calendar-blank-outline" size={48} color="#9CA3AF" />
+                <Text className="text-gray-500 mt-2 text-center">No tasks scheduled for this day</Text>
+              </View>
+            ) : (
+              getTasksForSelectedDate().map((task) => (
+                <Pressable
+                  key={task.id}
+                  style={styles.taskCard}
+                  onLongPress={() => handleTaskLongPress(task)}
+                  delayLongPress={400}
+                >
+                  {/* Icon */}
+                  <View
+                    style={[
+                      styles.iconContainer,
+                      {
+                        backgroundColor:
+                          task.type === 'meal' ? '#FFF4E6' : '#EFF6FF',
+                      },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name={task.type === 'meal' ? 'silverware-fork-knife' : 'pill'}
+                      size={24}
+                      color={task.type === 'meal' ? '#EA580C' : '#3B82F6'}
+                    />
+                  </View>
+
+                  {/* Task info */}
+                  <View className="flex-1 ml-4" style={{ minWidth: 0 }}>
+                    <Text className="text-base font-bold text-gray-900" numberOfLines={1}>{task.name}</Text>
+                    <View className="flex-row items-center mt-1" style={{ flexWrap: 'wrap' }}>
+                      <MaterialCommunityIcons name="clock-outline" size={14} color="#6B7280" />
+                      <Text className="text-sm text-gray-600 ml-1">{task.time}</Text>
+                    </View>
+
+                    {/* Day buttons */}
+                    <View className="flex-row gap-2 mt-3">
+                      {DAYS_SHORT.map((day, dayIndex) => (
+                        <Pressable
+                          key={dayIndex}
+                          onPress={() => toggleDay(task.id, dayIndex)}
+                          style={[
+                            styles.dayButton,
+                            task.days[dayIndex] && styles.dayButtonActive,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.dayButtonText,
+                              task.days[dayIndex] && styles.dayButtonTextActive,
+                            ]}
+                          >
+                            {day}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Toggle switch */}
+                  <Switch
+                    value={task.enabled}
+                    onValueChange={() => toggleTask(task.id)}
+                    trackColor={{ false: '#D1D5DB', true: '#3B82F6' }}
+                    thumbColor="#FFFFFF"
+                    ios_backgroundColor="#D1D5DB"
+                  />
+                </Pressable>
+              ))
+            )}
+          </>
         )}
       </ScrollView>
 
@@ -457,13 +639,9 @@ export default function ScheduleScreen() {
 
                 {/* Time */}
                 <Text className="text-sm font-semibold text-gray-900 mb-2 mt-4">Time</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g., 8:00 AM"
-                  placeholderTextColor="#9CA3AF"
-                  value={newTaskTime}
-                  onChangeText={setNewTaskTime}
-                />
+                <View style={styles.timePickerContainer}>
+                  <TimePicker value={newTaskTime} onChange={setNewTaskTime} />
+                </View>
 
                 {/* Repeat on Days */}
                 <Text className="text-sm font-semibold text-gray-900 mb-2 mt-4">
@@ -548,7 +726,7 @@ export default function ScheduleScreen() {
                 >
                   <Text className="text-base font-semibold text-gray-700">Cancel</Text>
                 </Pressable>
-                <Pressable style={styles.createButton} onPress={handleCreateTask}>
+                <Pressable style={styles.createButton} onPress={handleCreateTask} disabled={saving}>
                   <Text className="text-base font-semibold text-white">Create Task</Text>
                 </Pressable>
               </View>
@@ -611,6 +789,19 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     paddingBottom: 100,
+  },
+  dailyViewHeader: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  emptyDaily: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   taskCard: {
     flexDirection: 'row',
@@ -765,6 +956,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#111827',
     backgroundColor: '#FFFFFF',
+  },
+  timePickerContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingVertical: 8,
+    marginBottom: 8,
   },
   modalDayButton: {
     width: 40,

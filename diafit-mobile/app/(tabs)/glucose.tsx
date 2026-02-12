@@ -9,11 +9,14 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Animated,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { supabase } from '../../lib/supabase';
 
 const HEADER_HEIGHT = 140;
 const COLLAPSE_SCROLL = 100;
@@ -39,10 +42,13 @@ const MEASURE_OPTIONS = [
   { id: 'bedtime' as const, label: 'Bedtime', icon: 'weather-night' as const },
 ];
 
-const initialHistory = [
-  { id: '1', value: 120, time: '10:23am', day: 'Monday', context: 'Before' },
-  { id: '2', value: 156, time: '02:45pm', day: 'Monday', context: 'After' },
-];
+type HistoryEntry = {
+  id: string;
+  value: number;
+  time: string;
+  day: string;
+  context: string;
+};
 
 const weeklyTips = [
   {
@@ -71,6 +77,28 @@ const weeklyTips = [
   },
 ];
 
+const contextToLabel: Record<string, string> = {
+  before: 'Before',
+  after: 'After',
+  fasting: 'Fasting',
+  bedtime: 'Bedtime',
+  random: 'Random',
+};
+
+function parseTimeToDate(timeStr: string): Date {
+  const d = new Date();
+  const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+  if (match) {
+    let h = parseInt(match[1], 10);
+    const m = parseInt(match[2], 10);
+    const pm = (match[3] || '').toLowerCase() === 'pm';
+    if (pm && h < 12) h += 12;
+    if (!pm && h === 12) h = 0;
+    d.setHours(h, m, 0, 0);
+  }
+  return d;
+}
+
 export default function GlucoseScreen() {
   const insets = useSafeAreaInsets();
   const [timeframe, setTimeframe] = useState<'week' | 'month'>('week');
@@ -79,7 +107,44 @@ export default function GlucoseScreen() {
   const [glucoseContext, setGlucoseContext] = useState<'before' | 'after' | 'fasting' | 'bedtime'>('before');
   const [glucoseNotes, setGlucoseNotes] = useState('');
   const [measurementTime, setMeasurementTime] = useState('');
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  const fetchReadings = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('glucose_readings')
+      .select('id, value, context, reading_time, notes')
+      .eq('user_id', user.id)
+      .order('reading_time', { ascending: false })
+      .limit(50);
+    if (error) {
+      if (__DEV__) console.error('glucose fetch error:', error);
+      return;
+    }
+    setHistory(
+      (data || []).map((r) => ({
+        id: r.id,
+        value: r.value,
+        time: new Date(r.reading_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+        day: new Date(r.reading_time).toLocaleDateString('en-US', { weekday: 'long' }),
+        context: contextToLabel[r.context] || r.context,
+      }))
+    );
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      await fetchReadings();
+      if (mounted) setLoading(false);
+    })();
+    return () => { mounted = false; };
+  }, [fetchReadings]);;
 
   const fullHeaderHeight = insets.top + HEADER_HEIGHT;
   const headerHeight = scrollY.interpolate({
@@ -111,8 +176,32 @@ export default function GlucoseScreen() {
     setMeasurementTime(getDefaultTime());
   };
 
-  const handleGlucoseSave = () => {
-    // TODO: persist reading
+  const handleGlucoseSave = async () => {
+    const valueNum = parseInt(glucoseValue.trim(), 10);
+    if (Number.isNaN(valueNum) || valueNum <= 0 || valueNum >= 1000) {
+      Alert.alert('Invalid value', 'Enter a glucose value between 1 and 999 mg/dL.');
+      return;
+    }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      Alert.alert('Error', 'You must be signed in to save.');
+      return;
+    }
+    setSaving(true);
+    const readingTime = parseTimeToDate(measurementTime || getDefaultTime());
+    const { error } = await supabase.from('glucose_readings').insert({
+      user_id: user.id,
+      value: valueNum,
+      context: glucoseContext,
+      reading_time: readingTime.toISOString(),
+      notes: glucoseNotes.trim() || null,
+    });
+    setSaving(false);
+    if (error) {
+      Alert.alert('Error', error.message || 'Failed to save reading.');
+      return;
+    }
+    await fetchReadings();
     setGlucoseModalVisible(false);
   };
 
@@ -125,10 +214,10 @@ export default function GlucoseScreen() {
             colors={['#3B82F6', '#2563EB']}
             style={[styles.header, { paddingTop: insets.top + 20 }]}
           >
-            <View className="flex-row items-center justify-between mb-4">
-              <View>
-                <Text className="text-sm text-white/90">Glucose Tracking</Text>
-                <Text className="text-2xl font-bold text-white mt-1">Blood Glucose</Text>
+            <View className="flex-row items-center justify-between mb-4" style={{ flexWrap: 'wrap' }}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text className="text-sm text-white/90" numberOfLines={1}>Glucose Tracking</Text>
+                <Text className="text-2xl font-bold text-white mt-1" numberOfLines={1}>Blood Glucose</Text>
               </View>
               <View style={styles.headerIcon}>
                 <MaterialCommunityIcons name="water" size={24} color="#FFFFFF" />
@@ -327,9 +416,9 @@ export default function GlucoseScreen() {
             <View style={[styles.tipIcon, { backgroundColor: item.color }]}>
               <MaterialCommunityIcons name={item.icon} size={22} color="#FFFFFF" />
             </View>
-            <View className="flex-1 ml-3">
-              <Text className="text-base font-bold text-gray-900">{item.title}</Text>
-              <Text className="text-sm text-gray-600 mt-1">{item.tip}</Text>
+            <View className="flex-1 ml-3" style={{ minWidth: 0 }}>
+              <Text className="text-base font-bold text-gray-900" numberOfLines={1}>{item.title}</Text>
+              <Text className="text-sm text-gray-600 mt-1" numberOfLines={3}>{item.tip}</Text>
             </View>
           </View>
         ))}
@@ -341,7 +430,12 @@ export default function GlucoseScreen() {
             <Text className="text-sm font-semibold text-blue-600">View all</Text>
           </Pressable>
         </View>
-        {initialHistory.map((entry) => (
+        {loading ? (
+          <View style={{ padding: 20, alignItems: 'center' }}>
+            <ActivityIndicator size="small" color="#3B82F6" />
+          </View>
+        ) : (
+        history.map((entry) => (
           <View key={entry.id} style={[styles.card, cardShadow, styles.historyRow, { marginHorizontal: 20 }]}>
             <View style={styles.historyValue}>
               <Text className="text-lg font-bold text-gray-900">{entry.value}</Text>
@@ -353,7 +447,8 @@ export default function GlucoseScreen() {
               </View>
             </View>
           </View>
-        ))}
+        ))
+        )}
       </Animated.ScrollView>
 
       {/* Log Glucose modal – Quick entry */}
@@ -450,12 +545,18 @@ export default function GlucoseScreen() {
                 />
 
                 <View style={styles.glucoseModalActions}>
-                  <Pressable onPress={() => setGlucoseModalVisible(false)} style={styles.glucoseCancelBtn}>
+                  <Pressable onPress={() => setGlucoseModalVisible(false)} style={styles.glucoseCancelBtn} disabled={saving}>
                     <Text style={styles.glucoseCancelText}>Cancel</Text>
                   </Pressable>
-                  <Pressable onPress={handleGlucoseSave} style={styles.glucoseSaveBtn}>
-                    <MaterialCommunityIcons name="content-save" size={20} color="#FFFFFF" />
-                    <Text style={styles.glucoseSaveText}>Save Reading</Text>
+                  <Pressable onPress={handleGlucoseSave} style={styles.glucoseSaveBtn} disabled={saving}>
+                    {saving ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <>
+                        <MaterialCommunityIcons name="content-save" size={20} color="#FFFFFF" />
+                        <Text style={styles.glucoseSaveText}>Save Reading</Text>
+                      </>
+                    )}
                   </Pressable>
                 </View>
               </ScrollView>

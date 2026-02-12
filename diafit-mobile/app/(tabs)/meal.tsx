@@ -7,11 +7,14 @@ import {
   StyleSheet,
   Platform,
   Modal,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { supabase } from '../../lib/supabase';
 
 type MealCategory = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -30,6 +33,8 @@ type LoggedMeal = {
   time: string;
   category: string;
   kcal: number;
+  carbs?: number;
+  protein?: number;
 };
 
 const ALL_FOODS: FoodItem[] = [
@@ -41,11 +46,6 @@ const ALL_FOODS: FoodItem[] = [
 ];
 
 const RECENT_MEALS = ALL_FOODS.slice(0, 4);
-
-const TODAY_MEALS: LoggedMeal[] = [
-  { id: '1', name: 'Oatmeal with Berries', time: '8:30 AM', category: 'Breakfast', kcal: 280 },
-  { id: '2', name: 'Grilled Chicken Salad', time: '12:45 PM', category: 'Lunch', kcal: 350 },
-];
 
 const SMART_TIPS = [
   { icon: 'leaf' as const, title: 'Vegetable Power', tip: 'Add 2 cups of non-starchy vegetables to dinner. This adds 6-8g fiber and helps reduce glucose spikes by 30%.', color: '#16A34A' },
@@ -66,11 +66,54 @@ export default function MealScreen() {
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [servings, setServings] = useState(1);
   const [mealCategory, setMealCategory] = useState<MealCategory>('breakfast');
-  const [loggedMeals, setLoggedMeals] = useState<LoggedMeal[]>(TODAY_MEALS);
+  const [loggedMeals, setLoggedMeals] = useState<LoggedMeal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const fetchMealLogs = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    const { data, error } = await supabase
+      .from('meal_logs')
+      .select('id, custom_food_name, category, meal_time, total_calories, total_carbs, total_protein')
+      .eq('user_id', user.id)
+      .gte('meal_time', start.toISOString())
+      .lt('meal_time', end.toISOString())
+      .order('meal_time', { ascending: false });
+    if (error) {
+      if (__DEV__) console.error('meal_logs fetch error:', error);
+      return;
+    }
+    setLoggedMeals(
+      (data || []).map((m) => ({
+        id: m.id,
+        name: m.custom_food_name || 'Meal',
+        time: new Date(m.meal_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+        category: (m.category as string).charAt(0).toUpperCase() + (m.category as string).slice(1),
+        kcal: m.total_calories ?? 0,
+        carbs: m.total_carbs != null ? Number(m.total_carbs) : undefined,
+        protein: m.total_protein != null ? Number(m.total_protein) : undefined,
+      }))
+    );
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      await fetchMealLogs();
+      if (mounted) setLoading(false);
+    })();
+    return () => { mounted = false; };
+  }, [fetchMealLogs]);
 
   const todayCal = loggedMeals.reduce((s, m) => s + m.kcal, 0);
-  const todayCarbs = 57;
-  const todayProtein = 53;
+  const todayCarbs = loggedMeals.reduce((s, m) => s + (m.carbs ?? 0), 0);
+  const todayProtein = loggedMeals.reduce((s, m) => s + (m.protein ?? 0), 0);
 
   const openAddFood = () => setAddFoodVisible(true);
   const closeAddFood = () => {
@@ -91,17 +134,37 @@ export default function MealScreen() {
     setSelectedFood(null);
   };
 
-  const handleLogServing = () => {
+  const handleLogServing = async () => {
     if (!selectedFood) return;
-    const categoryLabel = mealCategory.charAt(0).toUpperCase() + mealCategory.slice(1);
-    const newMeal: LoggedMeal = {
-      id: Date.now().toString(),
-      name: selectedFood.name,
-      time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
-      category: categoryLabel,
-      kcal: selectedFood.kcal * servings,
-    };
-    setLoggedMeals((prev) => [...prev, newMeal]);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      Alert.alert('Error', 'You must be signed in to log meals.');
+      return;
+    }
+    setSaving(true);
+    const mealTime = new Date();
+    const totalCal = selectedFood.kcal * servings;
+    const totalCarbs = selectedFood.carbs * servings;
+    const totalProtein = selectedFood.protein * servings;
+    const totalFat = selectedFood.fat * servings;
+    const { error } = await supabase.from('meal_logs').insert({
+      user_id: user.id,
+      custom_food_name: selectedFood.name,
+      category: mealCategory,
+      servings: Number(servings),
+      total_calories: totalCal,
+      total_carbs: totalCarbs,
+      total_protein: totalProtein,
+      total_fat: totalFat,
+      total_fiber: 0,
+      meal_time: mealTime.toISOString(),
+    });
+    setSaving(false);
+    if (error) {
+      Alert.alert('Error', error.message || 'Failed to log meal.');
+      return;
+    }
+    await fetchMealLogs();
     closeCustomize();
   };
 
@@ -114,9 +177,9 @@ export default function MealScreen() {
   return (
     <View style={styles.screen}>
       <LinearGradient colors={['#3B82F6', '#2563EB']} style={[styles.header, { paddingTop: insets.top + 20 }]}>
-        <Text style={styles.headerSubtitle}>Nutrition Tracking</Text>
-        <View style={styles.headerRow}>
-          <Text style={styles.headerTitle}>Meal Log</Text>
+        <Text style={styles.headerSubtitle} numberOfLines={1}>Nutrition Tracking</Text>
+        <View style={[styles.headerRow, { flexWrap: 'wrap' }]}>
+          <Text style={[styles.headerTitle, { flex: 1, minWidth: 0 }]} numberOfLines={1}>Meal Log</Text>
           <View style={styles.headerIcon}>
             <MaterialCommunityIcons name="silverware-fork-knife" size={24} color="#FFFFFF" />
           </View>
@@ -144,18 +207,24 @@ export default function MealScreen() {
         {/* Today's Meals */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Today&apos;s Meals</Text>
-          {loggedMeals.map((meal) => (
+          {loading ? (
+            <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color="#2563EB" />
+            </View>
+          ) : (
+          loggedMeals.map((meal) => (
             <View key={meal.id} style={styles.mealRow}>
               <View style={styles.mealIcon}>
                 <MaterialCommunityIcons name="silverware-fork-knife" size={22} color="#FFFFFF" />
               </View>
-              <View style={styles.mealInfo}>
-                <Text style={styles.mealName}>{meal.name}</Text>
-                <Text style={styles.mealMeta}>{meal.time} · {meal.category}</Text>
+              <View style={[styles.mealInfo, { flex: 1, minWidth: 0 }]}>
+                <Text style={styles.mealName} numberOfLines={1}>{meal.name}</Text>
+                <Text style={styles.mealMeta} numberOfLines={1}>{meal.time} · {meal.category}</Text>
               </View>
               <Text style={styles.mealKcal}>{meal.kcal} kcal</Text>
             </View>
-          ))}
+          ))
+          )}
         </View>
 
         {/* AI Nutrition Alert */}
@@ -211,8 +280,8 @@ export default function MealScreen() {
             <View key={i} style={styles.tipCard}>
               <MaterialCommunityIcons name={t.icon} size={24} color={t.color} />
               <View style={styles.tipContent}>
-                <Text style={styles.tipTitle}>{t.title}</Text>
-                <Text style={styles.tipBody}>{t.tip}</Text>
+                <Text style={styles.tipTitle} numberOfLines={1}>{t.title}</Text>
+                <Text style={styles.tipBody} numberOfLines={4}>{t.tip}</Text>
               </View>
             </View>
           ))}
@@ -276,9 +345,9 @@ export default function MealScreen() {
               {filteredFoods.map((food) => (
                 <Pressable key={food.id} style={styles.foodRow} onPress={() => openCustomize(food)}>
                   <Text style={styles.foodEmoji}>🥗</Text>
-                  <View style={styles.foodInfo}>
-                    <Text style={styles.foodName}>{food.name}</Text>
-                    <Text style={styles.foodMacros}>{food.kcal} kcal • C: {food.carbs}g • P: {food.protein}g • F: {food.fat}g</Text>
+                  <View style={[styles.foodInfo, { flex: 1, minWidth: 0 }]}>
+                    <Text style={styles.foodName} numberOfLines={1}>{food.name}</Text>
+                    <Text style={styles.foodMacros} numberOfLines={1}>{food.kcal} kcal • C: {food.carbs}g • P: {food.protein}g • F: {food.fat}g</Text>
                   </View>
                   <MaterialCommunityIcons name="chevron-right" size={24} color="#9CA3AF" />
                 </Pressable>
@@ -340,9 +409,15 @@ export default function MealScreen() {
                     </Pressable>
                   ))}
                 </View>
-                <Pressable style={styles.logServingBtn} onPress={handleLogServing}>
-                  <MaterialCommunityIcons name="plus" size={22} color="#FFFFFF" />
-                  <Text style={styles.logServingBtnText}>Log {servings} serving{servings > 1 ? 's' : ''} to {categoryLabel}</Text>
+                <Pressable style={styles.logServingBtn} onPress={handleLogServing} disabled={saving}>
+                  {saving ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <MaterialCommunityIcons name="plus" size={22} color="#FFFFFF" />
+                      <Text style={styles.logServingBtnText}>Log {servings} serving{servings > 1 ? 's' : ''} to {categoryLabel}</Text>
+                    </>
+                  )}
                 </Pressable>
                 <Pressable style={styles.cancelBtn} onPress={closeCustomize}>
                   <Text style={styles.cancelBtnText}>Cancel</Text>
@@ -404,13 +479,13 @@ const styles = StyleSheet.create({
   macroValue: { fontSize: 15, fontWeight: '600' },
   mealRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   mealIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#EA580C', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  mealInfo: { flex: 1 },
+  mealInfo: { flex: 1, minWidth: 0 },
   mealName: { fontSize: 16, fontWeight: '600', color: '#111827' },
   mealMeta: { fontSize: 13, color: '#6B7280', marginTop: 2 },
   mealKcal: { fontSize: 14, fontWeight: '600', color: '#60A5FA' },
   alertCard: { borderRadius: 16, overflow: 'hidden', marginBottom: 16, minHeight: 140 },
   alertContent: { flexDirection: 'row', padding: 16, gap: 12 },
-  alertText: { flex: 1 },
+  alertText: { flex: 1, minWidth: 0 },
   alertTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', marginBottom: 6 },
   alertBody: { fontSize: 13, color: 'rgba(255,255,255,0.95)', marginBottom: 8 },
   alertSub: { fontSize: 13, fontWeight: '600', color: '#FFFFFF', marginTop: 4 },
@@ -426,7 +501,7 @@ const styles = StyleSheet.create({
   progressBarFill: { height: '100%', backgroundColor: '#EA580C', borderRadius: 4 },
   tipsHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   tipCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#F0FDF4', borderRadius: 12, padding: 12, marginBottom: 10, gap: 12, borderWidth: 1, borderColor: '#BBF7D0' },
-  tipContent: { flex: 1 },
+  tipContent: { flex: 1, minWidth: 0 },
   tipTitle: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 4 },
   tipBody: { fontSize: 13, color: '#4B5563' },
   insightsCard: { borderRadius: 16, overflow: 'hidden', marginBottom: 24, minHeight: 120 },

@@ -8,11 +8,14 @@ import {
   Modal,
   TextInput,
   KeyboardAvoidingView,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { supabase } from '../../lib/supabase';
 
 const cardShadow = Platform.select({
   ios: {
@@ -36,53 +39,24 @@ interface LabResult {
   status: 'normal' | 'monitor';
 }
 
-const initialResults: LabResult[] = [
-  {
-    id: '1',
-    name: 'HbA1c',
-    category: 'Blood Sugar',
-    normalRange: '< 5.7%',
-    date: 'Feb 5, 2026',
-    value: '6.8%',
-    status: 'monitor',
-  },
-  {
-    id: '2',
-    name: 'Fasting Glucose',
-    category: 'Blood Sugar',
-    normalRange: '70 - 100 mg/dL',
-    date: 'Feb 5, 2026',
-    value: '118 mg/dL',
-    status: 'monitor',
-  },
-  {
-    id: '3',
-    name: 'Total Cholesterol',
-    category: 'Cholesterol',
-    normalRange: '< 200 mg/dL',
-    date: 'Jan 20, 2026',
-    value: '185 mg/dL',
-    status: 'normal',
-  },
-  {
-    id: '4',
-    name: 'LDL Cholesterol',
-    category: 'Cholesterol',
-    normalRange: '< 100 mg/dL',
-    date: 'Jan 20, 2026',
-    value: '105 mg/dL',
-    status: 'normal',
-  },
-  {
-    id: '5',
-    name: 'Creatinine',
-    category: 'Kidney',
-    normalRange: '0.7 - 1.3 mg/dL',
-    date: 'Jan 15, 2026',
-    value: '0.9 mg/dL',
-    status: 'normal',
-  },
-];
+function parseValueAndUnit(val: string): { num: number; unit: string } {
+  const trimmed = val.trim();
+  const match = trimmed.match(/^([\d.]+)\s*(.*)$/);
+  if (match) {
+    const num = parseFloat(match[1]);
+    const unit = (match[2] || '').trim() || '—';
+    return { num: Number.isNaN(num) ? 0 : num, unit };
+  }
+  const num = parseFloat(trimmed);
+  return { num: Number.isNaN(num) ? 0 : num, unit: '—' };
+}
+
+function parseDateInput(s: string): string {
+  if (!s.trim()) return new Date().toISOString().slice(0, 10);
+  const d = new Date(s.trim());
+  if (Number.isNaN(d.getTime())) return new Date().toISOString().slice(0, 10);
+  return d.toISOString().slice(0, 10);
+}
 
 const CATEGORIES: { key: Category; label: string; icon: string }[] = [
   { key: 'all', label: 'All Tests', icon: 'test-tube' },
@@ -101,13 +75,50 @@ const LAB_TIPS = [
 export default function LabResultsScreen() {
   const insets = useSafeAreaInsets();
   const [category, setCategory] = useState<Category>('all');
-  const [results, setResults] = useState<LabResult[]>(initialResults);
+  const [results, setResults] = useState<LabResult[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newTestName, setNewTestName] = useState('');
   const [newCategory, setNewCategory] = useState('Blood Sugar');
   const [newValue, setNewValue] = useState('');
   const [newRange, setNewRange] = useState('');
   const [newDate, setNewDate] = useState('');
+
+  const fetchResults = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('lab_results')
+      .select('id, test_name, test_value, unit, reference_range, test_date, notes')
+      .eq('user_id', user.id)
+      .order('test_date', { ascending: false });
+    if (error) {
+      if (__DEV__) console.error('lab_results fetch error:', error);
+      return;
+    }
+    setResults(
+      (data || []).map((r) => ({
+        id: r.id,
+        name: r.test_name,
+        category: 'Blood Sugar',
+        normalRange: r.reference_range || '—',
+        date: new Date(r.test_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        value: `${r.test_value}${r.unit ? ` ${r.unit}` : ''}`,
+        status: 'normal' as const,
+      }))
+    );
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      await fetchResults();
+      if (mounted) setLoading(false);
+    })();
+    return () => { mounted = false; };
+  }, [fetchResults]);
 
   const totalTests = results.length;
   const normalCount = results.filter((r) => r.status === 'normal').length;
@@ -123,27 +134,37 @@ export default function LabResultsScreen() {
           return true;
         });
 
-  const handleSaveResult = () => {
-    if (newTestName.trim() && newValue.trim()) {
-      setResults([
-        {
-          id: Date.now().toString(),
-          name: newTestName,
-          category: newCategory,
-          normalRange: newRange || '—',
-          date: newDate || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-          value: newValue,
-          status: 'normal',
-        },
-        ...results,
-      ]);
-      setShowAddModal(false);
-      setNewTestName('');
-      setNewCategory('Blood Sugar');
-      setNewValue('');
-      setNewRange('');
-      setNewDate('');
+  const handleSaveResult = async () => {
+    if (!newTestName.trim() || !newValue.trim()) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      Alert.alert('Error', 'You must be signed in to save.');
+      return;
     }
+    setSaving(true);
+    const { num: testValue, unit } = parseValueAndUnit(newValue);
+    const testDate = parseDateInput(newDate);
+    const { error } = await supabase.from('lab_results').insert({
+      user_id: user.id,
+      test_name: newTestName.trim(),
+      test_value: testValue,
+      unit: unit,
+      reference_range: newRange.trim() || null,
+      test_date: testDate,
+      notes: null,
+    });
+    setSaving(false);
+    if (error) {
+      Alert.alert('Error', error.message || 'Failed to save result.');
+      return;
+    }
+    await fetchResults();
+    setShowAddModal(false);
+    setNewTestName('');
+    setNewCategory('Blood Sugar');
+    setNewValue('');
+    setNewRange('');
+    setNewDate('');
   };
 
   return (
@@ -153,11 +174,11 @@ export default function LabResultsScreen() {
         colors={['#3B82F6', '#2563EB']}
         style={[styles.header, { paddingTop: insets.top + 20 }]}
       >
-        <View className="flex-row items-start justify-between mb-4">
-          <View>
-            <Text className="text-sm text-white/90">Track Your Health</Text>
-            <Text className="text-2xl font-bold text-white mt-1">Lab Results</Text>
-            <Text className="text-sm text-white/90 mt-1">
+        <View className="flex-row items-start justify-between mb-4" style={{ flexWrap: 'wrap' }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text className="text-sm text-white/90" numberOfLines={1}>Track Your Health</Text>
+            <Text className="text-2xl font-bold text-white mt-1" numberOfLines={1}>Lab Results</Text>
+            <Text className="text-sm text-white/90 mt-1" numberOfLines={2}>
               Keep all your test results in one place
             </Text>
           </View>
@@ -243,7 +264,12 @@ export default function LabResultsScreen() {
         <View style={{ paddingHorizontal: 20 }}>
           <Text className="text-base font-semibold text-gray-900 mb-3">Recent Results</Text>
         </View>
-        {filteredResults.map((result) => (
+        {loading ? (
+          <View style={{ padding: 20, alignItems: 'center' }}>
+            <ActivityIndicator size="small" color="#3B82F6" />
+          </View>
+        ) : (
+        filteredResults.map((result) => (
           <View key={result.id} style={[styles.resultCard, cardShadow, { marginHorizontal: 20, marginBottom: 12 }]}>
             <View className="flex-row items-start justify-between">
               <View
@@ -258,11 +284,11 @@ export default function LabResultsScreen() {
                   color="#FFFFFF"
                 />
               </View>
-              <View className="flex-1 ml-4">
-                <Text className="text-base font-bold text-gray-900">{result.name}</Text>
-                <Text className="text-sm text-gray-500">{result.category}</Text>
-                <Text className="text-xs text-gray-400 mt-1">Normal Range: {result.normalRange}</Text>
-                <Text className="text-xs text-gray-400">{result.date}</Text>
+              <View className="flex-1 ml-4" style={{ minWidth: 0 }}>
+                <Text className="text-base font-bold text-gray-900" numberOfLines={1}>{result.name}</Text>
+                <Text className="text-sm text-gray-500" numberOfLines={1}>{result.category}</Text>
+                <Text className="text-xs text-gray-400 mt-1" numberOfLines={1}>Normal Range: {result.normalRange}</Text>
+                <Text className="text-xs text-gray-400" numberOfLines={1}>{result.date}</Text>
               </View>
               <View className="items-end">
                 <Text className="text-lg font-bold text-gray-900">{result.value}</Text>
@@ -285,7 +311,8 @@ export default function LabResultsScreen() {
               </View>
             </View>
           </View>
-        ))}
+        ))
+        )}
 
         {/* Lab Test Tips */}
         <View style={[styles.tipsCard, cardShadow, { marginHorizontal: 20 }]}>
@@ -398,9 +425,15 @@ export default function LabResultsScreen() {
                 <Pressable style={styles.cancelButton} onPress={() => setShowAddModal(false)}>
                   <Text className="text-base font-semibold text-gray-700">Cancel</Text>
                 </Pressable>
-                <Pressable style={styles.saveButton} onPress={handleSaveResult}>
-                  <MaterialCommunityIcons name="content-save" size={20} color="#FFFFFF" />
-                  <Text className="text-base font-semibold text-white ml-2">Save Result</Text>
+                <Pressable style={styles.saveButton} onPress={handleSaveResult} disabled={saving}>
+                  {saving ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <MaterialCommunityIcons name="content-save" size={20} color="#FFFFFF" />
+                      <Text className="text-base font-semibold text-white ml-2">Save Result</Text>
+                    </>
+                  )}
                 </Pressable>
               </View>
             </Pressable>
