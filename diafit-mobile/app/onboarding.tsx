@@ -160,14 +160,7 @@ export default function OnboardingScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-[#F8F8F8]" edges={['top', 'bottom']}>
-      {/* Header - Skip only, top right */}
-      <View className="flex-row justify-end items-center px-6 pt-4 pb-2">
-        <Pressable onPress={handleSkip} hitSlop={12}>
-          <Text className="text-base font-normal text-gray-700">Skip</Text>
-        </Pressable>
-      </View>
-
-      {/* Carousel */}
+      {/* Carousel - occupies upper part */}
       <FlatList
         ref={flatListRef}
         data={slides}
@@ -178,15 +171,16 @@ export default function OnboardingScreen() {
         viewabilityConfig={viewabilityConfig}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ flexGrow: 1 }}
+        style={styles.carousel}
         renderItem={({ item, index }) => (
-          <View style={{ width }} className="flex-1 justify-center">
+          <View style={{ width }} className="flex-1 justify-center pt-2">
             {/* Top area: card for slide 1, or background image for slides 2–5 */}
-            <View className="flex-1 px-6">
+            <View className="flex-1 px-6 min-h-0">
               {renderCardContent(item, index)}
             </View>
 
             {/* Feature title and description - centered */}
-            <View className="px-6 mt-6 items-center">
+            <View className="px-6 mt-4 items-center">
               <Text className="text-xl font-bold text-gray-900 text-center">
                 {item.title}
               </Text>
@@ -198,10 +192,10 @@ export default function OnboardingScreen() {
         )}
       />
 
-      {/* Bottom: Pagination, Button, Page counter */}
-      <View className="px-6 pb-6 pt-6">
-        {/* Pagination dots - active: blue pill; inactive: hollow grey circles */}
-        <View className="flex-row justify-center items-center gap-2 mb-6">
+      {/* Bottom: Pagination, Button, Page counter, Skip */}
+      <View className="px-6 pb-6 pt-4">
+        {/* Pagination dots */}
+        <View className="flex-row justify-center items-center gap-2 mb-5">
           {slides.map((_, index) => (
             <View
               key={index}
@@ -227,7 +221,7 @@ export default function OnboardingScreen() {
           ))}
         </View>
 
-        {/* Next / Continue to Login button - gradient lighter left to darker right */}
+        {/* Next / Continue to Login button */}
         <Pressable
           onPress={handleNext}
           className="rounded-xl overflow-hidden active:opacity-90"
@@ -245,18 +239,24 @@ export default function OnboardingScreen() {
           </LinearGradient>
         </Pressable>
 
-      
-
         {/* Page counter */}
         <Text className="text-center text-sm text-gray-700 mt-3">
           {currentIndex + 1} of {slides.length}
         </Text>
+
+        {/* Skip - below page counter */}
+        <Pressable onPress={handleSkip} hitSlop={12} className="items-center mt-2">
+          <Text className="text-base font-normal text-gray-500">Skip</Text>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  carousel: {
+    flex: 1,
+  },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
