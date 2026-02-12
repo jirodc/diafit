@@ -248,14 +248,17 @@ export default function HomeScreen() {
         </View>
 
         {/* 7-Day Glucose Trend card */}
-        <View style={[styles.card, cardShadow, { marginHorizontal: HORIZONTAL_MARGIN, marginBottom: 16 }]}>
+        <View
+          className="bg-white rounded-2xl p-5 mb-4"
+          style={[cardShadow, { marginHorizontal: HORIZONTAL_MARGIN, marginBottom: 16 }]}
+        >
           <View className="flex-row items-center justify-between mb-2">
             <View className="flex-row items-center gap-2">
               <Text className="text-lg font-bold text-gray-900">7-Day Glucose Trend</Text>
               <MaterialCommunityIcons name="chart-bar" size={20} color="#374151" />
             </View>
             <Pressable>
-              <Text className="text-sm font-medium text-[#3B82F6]">View all</Text>
+              <Text className="text-sm font-medium text-blue-600">View all</Text>
             </Pressable>
           </View>
           <Text className="text-3xl font-bold text-gray-900">115</Text>
@@ -264,7 +267,7 @@ export default function HomeScreen() {
             {WEEK_DAYS.map((day, i) => (
               <View key={i} className="flex-1 items-center">
                 <View
-                  className="w-full rounded-t-md bg-[#93C5FD] min-h-[8px]"
+                  className="w-full rounded-t bg-blue-300 min-h-2"
                   style={{ height: BAR_HEIGHTS[i] + 24 }}
                 />
                 <Text className="text-xs text-gray-500 mt-2">{day}</Text>

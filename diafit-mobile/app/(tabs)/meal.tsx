@@ -189,15 +189,15 @@ export default function MealScreen() {
             <Text style={styles.gapLabel}>Fiber</Text>
             <Text style={styles.gapValue}>8/25g</Text>
           </View>
-          <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, { width: '32%' }]} />
+          <View className="h-2 rounded bg-gray-200 overflow-hidden mb-3">
+            <View className="h-full w-[32%] bg-orange-500 rounded" />
           </View>
           <View style={styles.gapRow}>
             <Text style={styles.gapLabel}>Healthy Fats</Text>
             <Text style={styles.gapValue}>21/50g</Text>
           </View>
-          <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, { width: '42%' }]} />
+          <View className="h-2 rounded bg-gray-200 overflow-hidden mb-3">
+            <View className="h-full w-[42%] bg-orange-500 rounded" />
           </View>
         </View>
 
@@ -422,8 +422,6 @@ const styles = StyleSheet.create({
   gapRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   gapLabel: { fontSize: 14, color: '#374151' },
   gapValue: { fontSize: 14, fontWeight: '600', color: '#374151' },
-  progressBarBg: { height: 8, backgroundColor: '#E5E7EB', borderRadius: 4, overflow: 'hidden', marginBottom: 12 },
-  progressBarFill: { height: '100%', backgroundColor: '#EA580C', borderRadius: 4 },
   tipsHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   tipCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#F0FDF4', borderRadius: 12, padding: 12, marginBottom: 10, gap: 12, borderWidth: 1, borderColor: '#BBF7D0' },
   tipContent: { flex: 1 },

@@ -243,7 +243,10 @@ export default function GlucoseScreen() {
         </View>
 
         {/* 7-Day Glucose Trend */}
-        <View style={[styles.card, cardShadow, styles.chartCard, { marginHorizontal: 20 }]}>
+        <View
+          className="bg-white rounded-2xl p-4 mb-4 mx-5"
+          style={[cardShadow, { marginHorizontal: 20 }]}
+        >
           <View className="flex-row items-center justify-between mb-2">
             <View>
               <Text className="text-lg font-bold text-gray-900">7-Day Glucose Trend</Text>
@@ -254,23 +257,17 @@ export default function GlucoseScreen() {
               <Text className="text-sm font-semibold text-green-600">2.5%</Text>
             </View>
           </View>
-          <View style={styles.chartRow}>
+          <View className="flex-row items-end justify-between h-36">
             {CHART_DAYS.map((day, i) => (
-              <View key={day} style={styles.chartDay}>
-                <View style={styles.chartBars}>
+              <View key={day} className="flex-1 items-center">
+                <View className="flex-row items-end gap-1 h-24">
                   <View
-                    style={[
-                      styles.chartBar,
-                      styles.chartBarBefore,
-                      { height: BEFORE_HEIGHTS[i] },
-                    ]}
+                    className="w-3 rounded bg-blue-500 min-h-2"
+                    style={{ height: BEFORE_HEIGHTS[i] }}
                   />
                   <View
-                    style={[
-                      styles.chartBar,
-                      styles.chartBarAfter,
-                      { height: AFTER_HEIGHTS[i] },
-                    ]}
+                    className="w-3 rounded bg-red-500 min-h-2"
+                    style={{ height: AFTER_HEIGHTS[i] }}
                   />
                 </View>
                 <Text className="text-xs text-gray-500 mt-2">{day}</Text>
@@ -279,11 +276,11 @@ export default function GlucoseScreen() {
           </View>
           <View className="flex-row items-center justify-center gap-4 mt-4">
             <View className="flex-row items-center gap-2">
-              <View style={[styles.legendDot, { backgroundColor: '#3B82F6' }]} />
+              <View className="w-2 h-2 rounded-full bg-blue-500" />
               <Text className="text-xs text-gray-600">before meal</Text>
             </View>
             <View className="flex-row items-center gap-2">
-              <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
+              <View className="w-2 h-2 rounded-full bg-red-500" />
               <Text className="text-xs text-gray-600">after meal</Text>
             </View>
           </View>
@@ -293,8 +290,8 @@ export default function GlucoseScreen() {
               <Text className="text-lg font-bold text-gray-900">68%</Text>
             </View>
             <Text className="text-xs text-gray-500 mb-1">in target</Text>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: '68%' }]} />
+            <View className="h-2 rounded bg-gray-200 overflow-hidden">
+              <View className="h-full w-[68%] bg-green-500 rounded" />
             </View>
           </View>
         </View>
@@ -648,52 +645,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
-  },
-  chartCard: {
-    marginBottom: 16,
-  },
-  chartRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    height: 140,
-  },
-  chartDay: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  chartBars: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 4,
-    height: 100,
-  },
-  chartBar: {
-    width: 12,
-    borderRadius: 4,
-    minHeight: 8,
-  },
-  chartBarBefore: {
-    backgroundColor: '#3B82F6',
-  },
-  chartBarAfter: {
-    backgroundColor: '#EF4444',
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  progressTrack: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#E5E7EB',
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#22C55E',
-    borderRadius: 4,
   },
   insightsCard: {
     backgroundColor: '#7C3AED',

@@ -12,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Image } from 'expo-image';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const ONBOARDING_KEY = '@diafit_onboarding_complete';
@@ -32,8 +33,7 @@ const slides = [
     id: '2',
     cardBg: '#FFF8F0',
     iconBg: '#EA580C',
-    iconName: 'silverware-fork-knife' as const,
-    iconColor: '#FFFFFF',
+    image: require('../assets/images/LogMeal.jpg'),
     title: 'Log Your Meals',
     description:
       'Keep track of your nutrition with our comprehensive food database. Monitor calories, carbs, protein, and more.',
@@ -43,8 +43,7 @@ const slides = [
     id: '3',
     cardBg: '#FFFFFF',
     iconBg: '#7C3AED',
-    iconName: 'calendar' as const,
-    iconColor: '#FFFFFF',
+    image: require('../assets/images/SmartScheduling.jpg'),
     title: 'Smart Scheduling',
     description:
       'Never miss a dose with medication reminders and meal planning. Set custom tasks and stay on track.',
@@ -54,8 +53,7 @@ const slides = [
     id: '4',
     cardBg: '#F0FFF4',
     iconBg: '#16A34A',
-    iconName: 'dumbbell' as const,
-    iconColor: '#FFFFFF',
+    image: require('../assets/images/WorkOuts.jpg'),
     title: 'Personalized Workouts',
     description:
       'Stay active with workout plans tailored to your fitness level. From beginner to advanced exercises.',
@@ -65,9 +63,7 @@ const slides = [
     id: '5',
     cardBg: '#EFF6FF',
     iconBg: '#3B82F6',
-    iconName: 'robot-outline' as const,
-    iconColor: '#FFFFFF',
-    iconName2: 'chat-processing-outline' as const,
+    image: require('../assets/images/DiaBot.jpg'),
     title: 'AI Assistant - DiaBot',
     description:
       'Get instant answers and personalized advice from DiaBot, your 24/7 diabetes management companion.',
@@ -120,106 +116,44 @@ export default function OnboardingScreen() {
 
     if (index === 0) {
       return (
-        <View style={cardStyle}>
-          <View
-            className="w-20 h-20 rounded-2xl items-center justify-center"
-            style={{ backgroundColor: item.iconBg }}
-          >
-            <MaterialCommunityIcons
-              name={item.iconName}
-              size={40}
-              color={item.iconColor}
-            />
-          </View>
-          <View className="mt-4 items-center">
-            <Text className="text-2xl font-bold text-gray-900">Diafit</Text>
-            <Text className="text-sm text-gray-500 mt-1 text-center">
-              Your AI-Powered Diabetes Companion
-            </Text>
-          </View>
-        </View>
-      );
-    }
-
-    if (index === 2) {
-      return (
-        <View style={cardStyle}>
-          <MaterialCommunityIcons
-            name="alarm"
-            size={56}
-            color="#DC2626"
-          />
-          <View
-            className="w-16 h-16 rounded-2xl items-center justify-center mt-4"
-            style={{ backgroundColor: item.iconBg }}
-          >
-            <MaterialCommunityIcons
-              name={item.iconName}
-              size={32}
-              color={item.iconColor}
-            />
+        <View style={styles.card3dWrapper}>
+          {/* Back shadow layer for depth */}
+          <View style={styles.card3dShadow} />
+          <View style={[cardStyle, styles.card3d]}>
+            {/* 3D icon box with depth */}
+            <View style={styles.icon3dWrapper}>
+              <View style={styles.icon3dShadow} />
+              <View
+                className="w-20 h-20 rounded-2xl items-center justify-center"
+                style={[styles.icon3dFace, { backgroundColor: item.iconBg }]}
+              >
+                <MaterialCommunityIcons
+                  name={item.iconName}
+                  size={40}
+                  color={item.iconColor}
+                />
+              </View>
+            </View>
+            <View className="mt-4 items-center">
+              <Text className="text-2xl font-bold text-gray-900">Diafit</Text>
+              <Text className="text-sm text-gray-500 mt-1 text-center">
+                Your AI-Powered Diabetes Companion
+              </Text>
+            </View>
           </View>
         </View>
       );
     }
 
-    if (index === 3) {
-      return (
-        <View style={cardStyle}>
-          <Text style={{ fontSize: 56, marginBottom: 12 }}>💪</Text>
-          <View
-            className="w-16 h-16 rounded-2xl items-center justify-center"
-            style={{ backgroundColor: item.iconBg }}
-          >
-            <MaterialCommunityIcons
-              name={item.iconName}
-              size={32}
-              color={item.iconColor}
-            />
-          </View>
-        </View>
-      );
-    }
-
-    if (index === 4) {
-      return (
-        <View style={cardStyle}>
-          <View
-            className="w-20 h-20 rounded-2xl items-center justify-center"
-            style={{ backgroundColor: item.iconBg }}
-          >
-            <MaterialCommunityIcons
-              name={item.iconName}
-              size={44}
-              color={item.iconColor}
-            />
-          </View>
-          <View
-            className="w-14 h-14 rounded-xl items-center justify-center mt-4"
-            style={{ backgroundColor: item.iconBg }}
-          >
-            <MaterialCommunityIcons
-              name="chat-processing-outline"
-              size={28}
-              color="#FFFFFF"
-            />
-          </View>
-        </View>
-      );
-    }
-
+    // Slides 2–5: image as full-bleed background (no container)
     return (
-      <View style={cardStyle}>
-        <View
-          className="w-20 h-20 rounded-2xl items-center justify-center"
-          style={{ backgroundColor: item.iconBg }}
-        >
-          <MaterialCommunityIcons
-            name={item.iconName}
-            size={48}
-            color={item.iconColor}
-          />
-        </View>
+      <View style={styles.slideWithBackground}>
+        <Image
+          source={item.image}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+        />
+        <View style={styles.imageOverlay} />
       </View>
     );
   };
@@ -245,12 +179,14 @@ export default function OnboardingScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ flexGrow: 1 }}
         renderItem={({ item, index }) => (
-          <View style={{ width }} className="flex-1 px-6 justify-center">
-            {/* Card - per-screen design from images */}
-            {renderCardContent(item, index)}
+          <View style={{ width }} className="flex-1 justify-center">
+            {/* Top area: card for slide 1, or background image for slides 2–5 */}
+            <View className="flex-1 px-6">
+              {renderCardContent(item, index)}
+            </View>
 
             {/* Feature title and description - centered */}
-            <View className="mt-6 items-center">
+            <View className="px-6 mt-6 items-center">
               <Text className="text-xl font-bold text-gray-900 text-center">
                 {item.title}
               </Text>
@@ -337,6 +273,68 @@ const styles = StyleSheet.create({
         elevation: 4,
       },
     }),
+  },
+  card3dWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  card3dShadow: {
+    position: 'absolute',
+    width: '94%',
+    top: 8,
+    bottom: -8,
+    backgroundColor: 'rgba(59, 130, 246, 0.25)',
+    borderRadius: 20,
+    ...Platform.select({
+      ios: { shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.4, shadowRadius: 18 },
+      android: { elevation: 14 },
+    }),
+  },
+  card3d: {
+    transform: [{ perspective: 800 }, { rotateY: '-6deg' }, { rotateX: '4deg' }],
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 14 },
+        shadowOpacity: 0.18,
+        shadowRadius: 24,
+      },
+      android: { elevation: 20 },
+    }),
+  },
+  icon3dWrapper: {
+    position: 'relative',
+  },
+  icon3dShadow: {
+    position: 'absolute',
+    width: 80,
+    height: 80,
+    borderRadius: 16,
+    backgroundColor: 'rgba(30, 64, 175, 0.45)',
+    top: 5,
+    left: '50%',
+    marginLeft: -40,
+  },
+  icon3dFace: {
+    ...Platform.select({
+      ios: {
+        shadowColor: '#1E40AF',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.5,
+        shadowRadius: 12,
+      },
+      android: { elevation: 10 },
+    }),
+  },
+  slideWithBackground: {
+    flex: 1,
+    marginHorizontal: -24,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  imageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.12)',
   },
   dot: {
     alignSelf: 'center',
