@@ -3,6 +3,9 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  /* Fonts – use system UI; install @fontsource-variable/geist-sans and geist-mono for Geist */
+  --font-geist-sans: system-ui, -apple-system, sans-serif;
+  --font-geist-mono: ui-monospace, monospace;
   /* Diafit brand – use these for buttons, accents, gradients */
   --diafit-blue: #2563eb;
   --diafit-blue-light: #3b82f6;

@@ -1,17 +1,17 @@
-import type { Metadata } from "next";
-import Image from "next/image";
+import { useEffect } from "react";
 import SpotlightCard from "@/components/SpotlightCard";
 import { TeamSection } from "@/components/TeamSection";
 import { StatsSection } from "@/components/StatsSection";
 import ScrollReveal from "@/components/ScrollReveal";
 
-export const metadata: Metadata = {
-  title: "About Us – Diafit",
-  description:
-    "Empowering people with diabetes to live healthier, happier lives through AI-powered technology.",
-};
+export default function AboutPage() {
+  useEffect(() => {
+    document.title = "About Us – Diafit";
+    return () => {
+      document.title = "Diafit – AI-Powered Diabetes Management";
+    };
+  }, []);
 
-export default function About() {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero with image */}
@@ -28,13 +28,10 @@ export default function About() {
               </p>
             </div>
             <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-slate-200/80 shadow-xl">
-              <Image
+              <img
                 src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=800&q=80"
                 alt="Person using health app for diabetes management"
-                fill
-                className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 600px"
-                priority
+                className="absolute inset-0 h-full w-full object-cover"
               />
             </div>
           </div>
@@ -46,12 +43,10 @@ export default function About() {
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
             <div className="relative order-2 lg:order-1 aspect-[4/3] overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-100 shadow-lg">
-              <Image
+              <img
                 src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=700&q=80"
                 alt="Wellness and healthy lifestyle"
-                fill
-                className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 500px"
+                className="absolute inset-0 h-full w-full object-cover"
               />
             </div>
             <div className="order-1 lg:order-2">
@@ -105,12 +100,10 @@ export default function About() {
               spotlightColor="rgba(124, 58, 237, 0.12)"
             >
               <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-violet-100">
-                <Image
+                <img
                   src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=400&q=80"
                   alt="Patient-centered care"
-                  fill
-                  className="object-cover"
-                  sizes="300px"
+                  className="absolute inset-0 h-full w-full object-cover"
                 />
               </div>
               <h3 className="mt-4 text-xl font-semibold text-slate-800">
@@ -126,12 +119,10 @@ export default function About() {
               spotlightColor="rgba(37, 99, 235, 0.12)"
             >
               <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-blue-100">
-                <Image
+                <img
                   src="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&q=80"
                   alt="Security and privacy"
-                  fill
-                  className="object-cover"
-                  sizes="300px"
+                  className="absolute inset-0 h-full w-full object-cover"
                 />
               </div>
               <h3 className="mt-4 text-xl font-semibold text-slate-800">
@@ -147,12 +138,10 @@ export default function About() {
               spotlightColor="rgba(124, 58, 237, 0.12)"
             >
               <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-violet-100">
-                <Image
+                <img
                   src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&q=80"
                   alt="Innovation and data"
-                  fill
-                  className="object-cover"
-                  sizes="300px"
+                  className="absolute inset-0 h-full w-full object-cover"
                 />
               </div>
               <h3 className="mt-4 text-xl font-semibold text-slate-800">

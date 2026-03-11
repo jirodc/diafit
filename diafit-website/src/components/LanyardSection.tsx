@@ -1,12 +1,6 @@
-"use client";
+import { useEffect, useState, lazy, Suspense } from "react";
 
-import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
-
-const Lanyard = dynamic(
-  () => import("@/components/Lanyard").then((m) => m.default),
-  { ssr: false }
-);
+const Lanyard = lazy(() => import("@/components/Lanyard").then((m) => ({ default: m.default })));
 
 const CARD_GLB = "/lanyard/card.glb";
 const LANYARD_PNG = "/lanyard/lanyard.png";
@@ -67,7 +61,9 @@ export default function LanyardSection() {
 
   return (
     <div className="absolute inset-0 z-0 h-full">
-      <Lanyard position={[0, 0, 20]} gravity={[0, -40, 0]} />
+      <Suspense fallback={<div className="flex h-full items-center justify-center bg-slate-100 text-slate-500">Loading…</div>}>
+        <Lanyard position={[0, 0, 20]} gravity={[0, -40, 0]} />
+      </Suspense>
     </div>
   );
 }

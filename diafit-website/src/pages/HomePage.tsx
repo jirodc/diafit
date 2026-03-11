@@ -1,5 +1,4 @@
-import Link from "next/link";
-import Image from "next/image";
+import { Link } from "react-router-dom";
 import { GetStartedButton } from "@/components/GetStartedButton";
 import Threads from "@/components/Threads";
 import SpotlightCard from "@/components/SpotlightCard";
@@ -8,7 +7,7 @@ import { FeaturesCarousel } from "@/components/FeaturesCarousel";
 
 const HERO_HEARTBEAT_COLOR: [number, number, number] = [0.88, 0.18, 0.18];
 
-export default function Home() {
+export default function HomePage() {
   return (
     <div>
       {/* Hero - heartbeat full-screen background, plain text on top */}
@@ -54,7 +53,7 @@ export default function Home() {
             <div className="mt-10 flex flex-wrap gap-4">
               <GetStartedButton />
               <Link
-                href="/about"
+                to="/about"
                 className="inline-flex items-center rounded-lg border-2 border-blue-600 bg-white px-6 py-3 text-base font-medium text-blue-600 transition-colors hover:bg-blue-50"
               >
                 Learn More
@@ -62,13 +61,10 @@ export default function Home() {
             </div>
           </div>
           <div className="relative hidden aspect-[4/3] w-full max-w-md overflow-hidden rounded-2xl shadow-2xl lg:block lg:max-w-lg">
-            <Image
+            <img
               src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=800&q=80"
               alt="Person checking health metrics on phone"
-              fill
-              className="object-cover"
-              sizes="(max-width: 1024px) 0px, 512px"
-              priority
+              className="absolute inset-0 h-full w-full object-cover"
             />
           </div>
         </div>
@@ -85,9 +81,8 @@ export default function Home() {
               Powerful features designed to help you manage diabetes effectively
             </p>
           </div>
-          {/* Replace src below with your Pinterest image URL (right‑click image on Pinterest → Copy image address) */}
           <div className="mt-10 mx-auto max-w-3xl overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50 shadow-lg">
-            <Image
+            <img
               src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&q=80"
               alt="Stay healthy - diabetes management and wellness"
               width={800}
@@ -112,12 +107,10 @@ export default function Home() {
           </p>
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-slate-100 shadow-lg">
-              <Image
+              <img
                 src="https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=600&q=80"
                 alt="Healthy balanced meal"
-                fill
-                className="object-cover transition-transform duration-300 hover:scale-105"
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
               <span className="absolute bottom-4 left-4 text-sm font-medium text-white drop-shadow">
@@ -125,12 +118,10 @@ export default function Home() {
               </span>
             </div>
             <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-slate-100 shadow-lg">
-              <Image
+              <img
                 src="https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=600&q=80"
                 alt="Glucose monitoring"
-                fill
-                className="object-cover transition-transform duration-300 hover:scale-105"
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
               <span className="absolute bottom-4 left-4 text-sm font-medium text-white drop-shadow">
@@ -138,12 +129,10 @@ export default function Home() {
               </span>
             </div>
             <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-slate-100 shadow-lg sm:col-span-2 lg:col-span-1">
-              <Image
+              <img
                 src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&q=80"
                 alt="Active lifestyle"
-                fill
-                className="object-cover transition-transform duration-300 hover:scale-105"
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 33vw"
+                className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
               <span className="absolute bottom-4 left-4 text-sm font-medium text-white drop-shadow">

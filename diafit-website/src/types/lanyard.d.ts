@@ -15,11 +15,11 @@ declare module "meshline" {
   export const MeshLineMaterial: any;
 }
 
-declare global {
+declare module "react" {
   namespace JSX {
     interface IntrinsicElements {
-      meshLineGeometry: any;
-      meshLineMaterial: any;
+      meshLineGeometry: Record<string, unknown>;
+      meshLineMaterial: Record<string, unknown>;
     }
   }
 }

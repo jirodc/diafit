@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { Logo } from "./Logo";
 
 export function Footer() {
@@ -19,13 +19,13 @@ export function Footer() {
             </h3>
             <ul className="mt-4 space-y-3">
               <li>
-                <Link href="/#features" className="text-sm text-slate-300 transition-colors hover:text-white">Features</Link>
+                <Link to="/#features" className="text-sm text-slate-300 transition-colors hover:text-white">Features</Link>
               </li>
               <li>
-                <Link href="/#pricing" className="text-sm text-slate-300 transition-colors hover:text-white">Pricing</Link>
+                <Link to="/#pricing" className="text-sm text-slate-300 transition-colors hover:text-white">Pricing</Link>
               </li>
               <li>
-                <Link href="/#how-it-works" className="text-sm text-slate-300 transition-colors hover:text-white">How it Works</Link>
+                <Link to="/#how-it-works" className="text-sm text-slate-300 transition-colors hover:text-white">How it Works</Link>
               </li>
             </ul>
           </div>
@@ -35,13 +35,13 @@ export function Footer() {
             </h3>
             <ul className="mt-4 space-y-3">
               <li>
-                <Link href="/about" className="text-sm text-slate-300 transition-colors hover:text-white">About Us</Link>
+                <Link to="/about" className="text-sm text-slate-300 transition-colors hover:text-white">About Us</Link>
               </li>
               <li>
-                <Link href="/careers" className="text-sm text-slate-300 transition-colors hover:text-white">Careers</Link>
+                <Link to="/careers" className="text-sm text-slate-300 transition-colors hover:text-white">Careers</Link>
               </li>
               <li>
-                <Link href="/contact" className="text-sm text-slate-300 transition-colors hover:text-white">Contact</Link>
+                <Link to="/contact" className="text-sm text-slate-300 transition-colors hover:text-white">Contact</Link>
               </li>
             </ul>
           </div>
@@ -51,13 +51,13 @@ export function Footer() {
             </h3>
             <ul className="mt-4 space-y-3">
               <li>
-                <Link href="/privacy" className="text-sm text-slate-300 transition-colors hover:text-white">Privacy Policy</Link>
+                <Link to="/privacy" className="text-sm text-slate-300 transition-colors hover:text-white">Privacy Policy</Link>
               </li>
               <li>
-                <Link href="/terms" className="text-sm text-slate-300 transition-colors hover:text-white">Terms of Service</Link>
+                <Link to="/terms" className="text-sm text-slate-300 transition-colors hover:text-white">Terms of Service</Link>
               </li>
               <li>
-                <Link href="/compliance" className="text-sm text-slate-300 transition-colors hover:text-white">Cookie Compliance</Link>
+                <Link to="/compliance" className="text-sm text-slate-300 transition-colors hover:text-white">Cookie Compliance</Link>
               </li>
             </ul>
           </div>

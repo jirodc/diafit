@@ -1,15 +1,13 @@
-"use client";
-
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import { LoginModal } from "@/components/LoginModal";
 
 export default function LoginPage() {
-  const router = useRouter();
+  const navigate = useNavigate();
 
   return (
     <LoginModal
       isOpen
-      onClose={() => router.push("/")}
+      onClose={() => navigate("/")}
     />
   );
 }

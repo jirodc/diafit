@@ -1,7 +1,4 @@
-"use client";
-
-import React, { useRef, useEffect, useState, useCallback } from "react";
-import Image from "next/image";
+import { useRef, useEffect, useState, useCallback } from "react";
 
 const AUTO_SLIDE_INTERVAL_MS = 4000;
 
@@ -84,7 +81,6 @@ export function FeaturesCarousel() {
 
   const scroll = (direction: "left" | "right") => {
     if (!scrollRef.current) return;
-    const amount = getScrollAmount();
     if (direction === "right") {
       const next = currentIndex >= FEATURES.length - 1 ? 0 : currentIndex + 1;
       scrollToIndex(next);
@@ -138,12 +134,10 @@ export function FeaturesCarousel() {
             style={{ scrollSnapAlign: "start" }}
           >
             <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
-              <Image
+              <img
                 src={feature.imageSrc}
                 alt={feature.imageAlt}
-                fill
-                className="object-cover"
-                sizes="340px"
+                className="absolute inset-0 h-full w-full object-cover"
               />
             </div>
             <div className="flex flex-col p-5">
