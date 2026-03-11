@@ -298,8 +298,8 @@ export default function WorkoutScreen() {
               <Text style={styles.weeklyGoalTitle}>Weekly Goal</Text>
               <Text style={styles.weeklyGoalSubtitle}>150 minutes of activity</Text>
               <Text style={styles.weeklyGoalLabel}>Progress</Text>
-              <View style={styles.progressBarBg}>
-                <View style={[styles.progressBarFill, { width: '0%' }]} />
+              <View className="h-2 rounded bg-gray-200 overflow-hidden mt-1.5">
+                <View className="h-full w-[0%] bg-blue-600 rounded" />
               </View>
               <Text style={styles.weeklyGoalCount}>0/150 min</Text>
             </View>
@@ -396,12 +396,12 @@ export default function WorkoutScreen() {
         <ScrollView style={styles.scroll} contentContainerStyle={styles.detailScrollContent} showsVerticalScrollIndicator={false}>
           {/* Workout Progress */}
           <View style={styles.exercisesCard}>
-            <View style={styles.progressHeader}>
+            <View className="flex-row justify-between items-center mb-2">
               <Text style={styles.exercisesCardTitle}>Workout Progress</Text>
-              <Text style={styles.progressCount}>{completedCount}/{totalPhases}</Text>
+              <Text className="text-sm text-gray-600 font-semibold">{completedCount}/{totalPhases}</Text>
             </View>
-            <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${(completedCount / totalPhases) * 100}%` }]} />
+            <View className="h-2 rounded bg-gray-200 overflow-hidden">
+              <View className="h-full bg-blue-600 rounded" style={{ width: `${(completedCount / totalPhases) * 100}%` }} />
             </View>
           </View>
 
@@ -598,18 +598,6 @@ const styles = StyleSheet.create({
   weeklyGoalTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
   weeklyGoalSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 2 },
   weeklyGoalLabel: { fontSize: 13, color: '#6B7280', marginTop: 10 },
-  progressBarBg: {
-    height: 8,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 4,
-    marginTop: 6,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#2563EB',
-    borderRadius: 4,
-  },
   weeklyGoalCount: { fontSize: 12, color: '#6B7280', marginTop: 6 },
 
   detailHeader: {
@@ -641,8 +629,6 @@ const styles = StyleSheet.create({
     ...cardShadow,
   },
   exercisesCardTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 12 },
-  progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  progressCount: { fontSize: 14, color: '#6B7280', fontWeight: '600' },
   exerciseRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
   exerciseRowBorder: { borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
   exerciseRowActive: { paddingVertical: 14 },

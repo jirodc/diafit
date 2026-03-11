@@ -19,6 +19,7 @@
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
     "@supabase/supabase-js": "^2.95.3",
+    "autoprefixer": "^10.4.24",
     "expo": "~54.0.33",
     "expo-application": "^7.0.8",
     "expo-auth-session": "~7.0.10",
@@ -36,6 +37,7 @@
     "expo-system-ui": "~6.0.9",
     "expo-web-browser": "~15.0.10",
     "nativewind": "^4.2.1",
+    "postcss": "^8.5.6",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
@@ -54,5 +56,10 @@
     "supabase": "^2.76.8",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "description": "This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
 }
