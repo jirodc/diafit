@@ -1,18 +1,37 @@
-import { View, Text, ScrollView, Pressable, StyleSheet, Platform } from 'react-native';
-import React from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, Platform, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../../lib/supabase';
 
 const cardShadow = Platform.select({
   ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
   android: { elevation: 3 },
 });
 
+const PROFILE_KEY = '@diafit_profile_complete';
+
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await supabase.auth.signOut();
+      await AsyncStorage.removeItem(PROFILE_KEY);
+      router.replace('/(auth)/welcome');
+    } catch {
+      router.replace('/(auth)/welcome');
+    } finally {
+      setLoggingOut(false);
+    }
+  };
 
   return (
     <View style={styles.screen}>
@@ -112,8 +131,16 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
-        <Pressable style={styles.logoutBtn} onPress={() => router.replace('/(auth)/welcome')}>
-          <Text style={styles.logoutText}>→ Log Out</Text>
+        <Pressable
+          style={[styles.logoutBtn, loggingOut && styles.logoutBtnDisabled]}
+          onPress={handleLogout}
+          disabled={loggingOut}
+        >
+          {loggingOut ? (
+            <ActivityIndicator size="small" color="#DC2626" />
+          ) : (
+            <Text style={styles.logoutText}>→ Log Out</Text>
+          )}
         </Pressable>
 
         <Text style={styles.footer}>Diafit v1.0.0</Text>
@@ -172,6 +199,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...cardShadow,
   },
+  logoutBtnDisabled: { opacity: 0.7 },
   logoutText: { fontSize: 16, fontWeight: '700', color: '#DC2626' },
   footer: { fontSize: 12, color: '#9CA3AF', textAlign: 'center', marginTop: 24 },
 });

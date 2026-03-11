@@ -4,6 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../../lib/supabase';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HORIZONTAL_MARGIN = Math.max(16, SCREEN_WIDTH * 0.04);
@@ -105,10 +107,16 @@ export default function HomeScreen() {
     }
   }, [profileMenuVisible]);
 
-  const handleProfileMenuItem = (item: (typeof PROFILE_MENU_ITEMS)[0]) => {
+  const handleProfileMenuItem = async (item: (typeof PROFILE_MENU_ITEMS)[0]) => {
     setProfileMenuVisible(false);
     if (item.isLogout) {
-      // TODO: sign out and navigate to auth
+      try {
+        await supabase.auth.signOut();
+        await AsyncStorage.removeItem('@diafit_profile_complete');
+        router.replace('/(auth)/welcome');
+      } catch {
+        router.replace('/(auth)/welcome');
+      }
       return;
     }
     if (item.path) router.push(item.path as any);

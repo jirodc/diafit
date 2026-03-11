@@ -13,9 +13,10 @@ export default function IndexScreen() {
   useEffect(() => {
     const checkAuthAndOnboarding = async () => {
       try {
-        // In development, optionally reset so you can test full flow (set to false to keep session)
-        if (__DEV__) {
-          // await AsyncStorage.multiRemove([ONBOARDING_KEY, PROFILE_KEY]);
+        // To see onboarding again: set forceOnboardingInDev = true (and reload), and ensure you're signed out.
+        const forceOnboardingInDev = true;
+        if (__DEV__ && forceOnboardingInDev) {
+          await AsyncStorage.multiRemove([ONBOARDING_KEY, PROFILE_KEY]);
         }
 
         const { data: { session } } = await supabase.auth.getSession();
