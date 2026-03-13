@@ -19,7 +19,10 @@ export function Footer() {
             </h3>
             <ul className="mt-4 space-y-3">
               <li>
-                <Link to="/#features" className="text-sm text-slate-300 transition-colors hover:text-white">Features</Link>
+                <Link to="/#services" className="text-sm text-slate-300 transition-colors hover:text-white">Features</Link>
+              </li>
+              <li>
+                <Link to="/#faqs" className="text-sm text-slate-300 transition-colors hover:text-white">FAQs</Link>
               </li>
               <li>
                 <Link to="/#pricing" className="text-sm text-slate-300 transition-colors hover:text-white">Pricing</Link>

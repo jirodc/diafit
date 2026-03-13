@@ -1,6 +1,8 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 
-const AUTO_SLIDE_INTERVAL_MS = 4000;
+/** Pixels to scroll per tick for right-to-left auto movement */
+const AUTO_SCROLL_PX_PER_TICK = 1;
+const AUTO_SCROLL_TICK_MS = 30;
 
 export interface FeatureSlide {
   title: string;
@@ -56,8 +58,13 @@ const FEATURES: FeatureSlide[] = [
 
 const GAP = 24;
 
-export function FeaturesCarousel() {
+interface FeaturesCarouselProps {
+  variant?: "light" | "dark";
+}
+
+export function FeaturesCarousel({ variant = "light" }: FeaturesCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const isDark = variant === "dark";
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
@@ -67,49 +74,69 @@ export function FeaturesCarousel() {
     return (card?.clientWidth ?? 340) + GAP;
   }, []);
 
+  /** Width of one full set of slides (used to loop seamlessly) */
+  const getOneSetWidth = useCallback(() => {
+    return getScrollAmount() * FEATURES.length;
+  }, [getScrollAmount]);
+
   const scrollToIndex = useCallback(
-    (index: number) => {
+    (index: number, useSecondSet?: boolean) => {
       if (!scrollRef.current) return;
       const amount = getScrollAmount();
-      const maxScroll = (FEATURES.length - 1) * amount;
-      const left = Math.min(index * amount, maxScroll);
+      const oneSet = getOneSetWidth();
+      const slideIndex = index % FEATURES.length;
+      const baseLeft = slideIndex * amount;
+      const left = useSecondSet ? oneSet + baseLeft : baseLeft;
       scrollRef.current.scrollTo({ left, behavior: "smooth" });
-      setCurrentIndex(index);
+      setCurrentIndex(slideIndex);
     },
-    [getScrollAmount]
+    [getScrollAmount, getOneSetWidth]
   );
 
   const scroll = (direction: "left" | "right") => {
     if (!scrollRef.current) return;
+    const oneSet = getOneSetWidth();
+    const inSecondSet = scrollRef.current.scrollLeft >= oneSet * 0.5;
     if (direction === "right") {
       const next = currentIndex >= FEATURES.length - 1 ? 0 : currentIndex + 1;
-      scrollToIndex(next);
+      scrollToIndex(next, inSecondSet);
     } else {
       const next = currentIndex <= 0 ? FEATURES.length - 1 : currentIndex - 1;
-      scrollToIndex(next);
+      scrollToIndex(next, inSecondSet);
     }
   };
 
+  // Sync currentIndex from scroll position (for dots/buttons)
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     const onScroll = () => {
       const amount = getScrollAmount();
-      const index = Math.round(el.scrollLeft / amount);
-      setCurrentIndex(Math.min(index, FEATURES.length - 1));
+      const rawIndex = el.scrollLeft / amount;
+      const indexInSet = Math.round(rawIndex % FEATURES.length);
+      setCurrentIndex(indexInSet);
     };
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
   }, [getScrollAmount]);
 
+  // Continuous right-to-left auto scroll (looping)
   useEffect(() => {
-    if (isPaused) return;
+    const el = scrollRef.current;
+    if (!el || isPaused) return;
+    const oneSetWidth = getOneSetWidth();
+    if (oneSetWidth <= 0) return;
     const id = setInterval(() => {
-      const next = currentIndex >= FEATURES.length - 1 ? 0 : currentIndex + 1;
-      scrollToIndex(next);
-    }, AUTO_SLIDE_INTERVAL_MS);
+      if (!el) return;
+      const nextLeft = el.scrollLeft + AUTO_SCROLL_PX_PER_TICK;
+      if (nextLeft >= oneSetWidth) {
+        el.scrollLeft = nextLeft - oneSetWidth;
+      } else {
+        el.scrollLeft = nextLeft;
+      }
+    }, AUTO_SCROLL_TICK_MS);
     return () => clearInterval(id);
-  }, [isPaused, currentIndex, scrollToIndex]);
+  }, [isPaused, getOneSetWidth]);
 
   return (
     <div
@@ -119,30 +146,36 @@ export function FeaturesCarousel() {
     >
       <div
         ref={scrollRef}
-        className="flex gap-6 overflow-x-auto overflow-y-hidden pb-4 pt-2 scroll-smooth"
+        className="flex gap-6 overflow-x-auto overflow-y-hidden pb-4 pt-2"
         style={{
-          scrollbarWidth: "thin",
+          scrollbarWidth: "none",
           scrollSnapType: "x mandatory",
           WebkitOverflowScrolling: "touch",
         }}
       >
-        {FEATURES.map((feature, index) => (
+        {[...FEATURES, ...FEATURES].map((feature, index) => (
           <div
             key={index}
             data-slide
-            className="flex w-[min(340px,85vw)] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-md transition-shadow hover:shadow-lg"
+            className={`flex w-[min(340px,85vw)] shrink-0 snap-start flex-col overflow-hidden rounded-2xl shadow-md transition-shadow hover:shadow-xl ${
+              isDark
+                ? "border border-white/15 bg-gray-800/70"
+                : "border border-slate-200/80 bg-white hover:shadow-lg"
+            }`}
             style={{ scrollSnapAlign: "start" }}
           >
-            <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
-              <img
-                src={feature.imageSrc}
-                alt={feature.imageAlt}
-                className="absolute inset-0 h-full w-full object-cover"
-              />
+            <div className="screen-3d-card p-2 pt-3">
+              <div className="screen-3d-card-inner relative aspect-[4/3] w-full overflow-hidden">
+                <img
+                  src={feature.imageSrc}
+                  alt={feature.imageAlt}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              </div>
             </div>
             <div className="flex flex-col p-5">
-              <h3 className="text-xl font-semibold text-slate-800">{feature.title}</h3>
-              <p className="mt-2 text-slate-600">{feature.description}</p>
+              <h3 className={`text-xl font-semibold ${isDark ? "text-white" : "text-slate-800"}`}>{feature.title}</h3>
+              <p className={`mt-2 ${isDark ? "text-slate-300" : "text-slate-600"}`}>{feature.description}</p>
             </div>
           </div>
         ))}
@@ -152,7 +185,11 @@ export function FeaturesCarousel() {
           type="button"
           onClick={() => scroll("left")}
           aria-label="Previous feature"
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-800"
+          className={`flex h-10 w-10 items-center justify-center rounded-full shadow-sm transition-colors ${
+            isDark
+              ? "border border-white/20 bg-gray-700/80 text-white hover:bg-gray-600/80"
+              : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-800"
+          }`}
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -161,7 +198,11 @@ export function FeaturesCarousel() {
         <button
           type="button"
           onClick={() => scroll("right")}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-800"
+          className={`flex h-10 w-10 items-center justify-center rounded-full shadow-sm transition-colors ${
+            isDark
+              ? "border border-white/20 bg-gray-700/80 text-white hover:bg-gray-600/80"
+              : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-800"
+          }`}
           aria-label="Next feature"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

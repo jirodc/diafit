@@ -2,7 +2,6 @@ import { Routes, Route } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { LoginModalProvider } from "@/contexts/LoginModalContext";
-import { BackgroundRays } from "@/components/BackgroundRays";
 import HomePage from "@/pages/HomePage";
 import AboutPage from "@/pages/AboutPage";
 import LoginPage from "@/pages/LoginPage";
@@ -10,7 +9,6 @@ import LoginPage from "@/pages/LoginPage";
 export default function App() {
   return (
     <div className="min-h-screen antialiased flex flex-col relative font-sans">
-      <BackgroundRays />
       <LoginModalProvider>
         <div className="relative z-10 flex min-h-screen flex-col">
           <Header />

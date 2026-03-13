@@ -1,8 +1,118 @@
-import { useEffect } from "react";
-import SpotlightCard from "@/components/SpotlightCard";
-import { TeamSection } from "@/components/TeamSection";
-import { StatsSection } from "@/components/StatsSection";
-import ScrollReveal from "@/components/ScrollReveal";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { GetStartedButton } from "@/components/GetStartedButton";
+import { ChevronDown } from "lucide-react";
+import ChromaGrid from "@/components/ChromaGrid";
+
+const TEAM = [
+  { name: "Jiro L. Del Carmon", title: "UI/UX Developer", avatarUrl: "/team/Delcarmen.jpg" },
+  { name: "John Bryan V. Cancel", title: "Project Manager", avatarUrl: "/team/Cancel.jpg" },
+  { name: "John Brieyloo E. Umipon", title: "UI & Documentation", avatarUrl: "/team/Umipon.jpg" },
+];
+
+const CORE_VALUES = [
+  {
+    title: "Patient-Centered",
+    description:
+      "Everything we do is designed with our users' health and well-being in mind. We put people first in every feature and decision.",
+    image: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600&q=80",
+    alt: "Patient-centered care",
+  },
+  {
+    title: "Privacy & Security",
+    description:
+      "Your health data is protected with enterprise-grade encryption and HIPAA compliance. We never compromise on security.",
+    image: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=600&q=80",
+    alt: "Security and privacy",
+  },
+  {
+    title: "Innovation",
+    description:
+      "We continuously improve our AI algorithms to provide better insights and recommendations for diabetes management.",
+    image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&q=80",
+    alt: "Innovation",
+  },
+];
+
+const FAQ_ITEMS = [
+  {
+    q: "What is Diafit?",
+    a: "Diafit is an AI-powered app that helps you track glucose, get personalized meal plans, and manage your diabetes with smart insights.",
+  },
+  {
+    q: "How does Diafit work?",
+    a: "You log your glucose readings, meals, and activities. Our AI analyzes your data and provides personalized recommendations and trends.",
+  },
+  {
+    q: "What services does Diafit offer?",
+    a: "We offer glucose tracking, meal planning, AI insights, health reports, and community support—all in one place.",
+  },
+  {
+    q: "Is my data secure?",
+    a: "Yes. Your health data is encrypted and stored securely. We are committed to HIPAA compliance and never share your information without consent.",
+  },
+  {
+    q: "What makes Diafit different?",
+    a: "Diafit combines cutting-edge AI with a simple, user-friendly design so diabetes management fits into your life—not the other way around.",
+  },
+];
+
+const HEALTH_TIPS = [
+  {
+    tag: "Diet",
+    title: "Sustainable eating for better glucose control",
+    description: "Discover meal planning tips that help stabilize blood sugar without feeling restrictive.",
+    image: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=600&q=80",
+    href: "/#services",
+  },
+  {
+    tag: "Wellness",
+    title: "Mindful habits for diabetes management",
+    description: "Small daily habits that support your health goals and reduce stress.",
+    image: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=600&q=80",
+    href: "/#services",
+  },
+  {
+    tag: "Exercise",
+    title: "Stay active, your way",
+    description: "Practical ways to move more and track how activity affects your numbers.",
+    image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&q=80",
+    href: "/#services",
+  },
+];
+
+function FAQAccordion() {
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+
+  return (
+    <div className="space-y-2">
+      {FAQ_ITEMS.map((item, index) => (
+        <div
+          key={index}
+          className="border-b border-slate-200 last:border-b-0"
+        >
+          <button
+            type="button"
+            onClick={() => setOpenIndex(openIndex === index ? null : index)}
+            className="flex w-full items-center justify-between py-4 text-left font-medium text-slate-900 transition-colors hover:text-slate-700"
+          >
+            {item.q}
+            <ChevronDown
+              className={`h-5 w-5 flex-shrink-0 text-slate-500 transition-transform ${openIndex === index ? "rotate-180" : ""}`}
+            />
+          </button>
+          <div
+            className={`overflow-hidden transition-all duration-200 ${
+              openIndex === index ? "max-h-48 opacity-100" : "max-h-0 opacity-0"
+            }`}
+          >
+            <p className="pb-4 text-slate-600 text-sm leading-relaxed">{item.a}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function AboutPage() {
   useEffect(() => {
@@ -14,166 +124,198 @@ export default function AboutPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero with image */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-slate-50 via-white to-violet-50/30 py-16 sm:py-24">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
-            <div>
-              <h1 className="text-4xl font-bold tracking-tight text-slate-800 sm:text-5xl">
-                About <span className="bg-gradient-to-r from-violet-600 to-blue-600 bg-clip-text text-transparent">Diafit</span>
-              </h1>
-              <p className="mt-6 max-w-xl text-lg text-slate-600">
-                Empowering people with diabetes to live healthier, happier lives
-                through AI-powered technology.
-              </p>
-            </div>
-            <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-slate-200/80 shadow-xl">
-              <img
-                src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=800&q=80"
-                alt="Person using health app for diabetes management"
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Our Mission with image */}
-      <section className="bg-white py-16 sm:py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
-            <div className="relative order-2 lg:order-1 aspect-[4/3] overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-100 shadow-lg">
-              <img
-                src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=700&q=80"
-                alt="Wellness and healthy lifestyle"
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-            </div>
-            <div className="order-1 lg:order-2">
-              <h2 className="text-2xl font-bold text-slate-800 sm:text-3xl">
-                Our Mission
-              </h2>
-              <p className="mt-4 text-slate-600">
-                At Diafit, we believe that managing diabetes shouldn&apos;t be
-                overwhelming. Our mission is to empower individuals with the
-                tools, insights, and support they need to take control of their
-                health.
-              </p>
-              <p className="mt-4 text-slate-600">
-                We combine cutting-edge AI technology with user-friendly design
-                to make diabetes management simple, effective, and accessible
-                to everyone.
-              </p>
+      {/* Hero: full-width bg image + left overlay card (header overlays this) */}
+      <section className="relative min-h-screen overflow-hidden bg-slate-800">
+        <img
+          src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1600&q=80"
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover opacity-70"
+        />
+        <div className="absolute inset-0 bg-slate-900/40" />
+        <div className="relative mx-auto flex min-h-[420px] max-w-6xl items-center px-4 pt-24 pb-16 sm:min-h-[480px] sm:pt-28 sm:px-6 lg:min-h-[520px] lg:px-8">
+          <div className="max-w-xl">
+            <p className="text-blue-300 text-sm font-medium">About Diafit</p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+              Advancing health with accessible wellness
+            </h1>
+            <p className="mt-4 text-slate-200 leading-relaxed">
+              We empower people with diabetes to live healthier, happier lives through
+              AI-powered technology—so you can take control of your health with confidence.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <GetStartedButton />
+              <Link
+                to="/#services"
+                className="inline-flex items-center justify-center rounded-lg border-2 border-white bg-transparent px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+              >
+                Learn More
+              </Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Quote – accent band */}
-      <section className="bg-gradient-to-r from-violet-600 to-blue-600 py-16 sm:py-20">
-        <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
-          <ScrollReveal
-            baseOpacity={0.2}
-            enableBlur
-            baseRotation={2}
-            blurStrength={3}
-            containerClassName="!my-0"
-            textClassName="text-white drop-shadow-sm"
-          >
-            Managing diabetes isn&apos;t just about numbers—it&apos;s about
-            living well. At Diafit, we&apos;re here to empower you with
-            AI-powered insights, so you can take control of your health and
-            thrive every day.
-          </ScrollReveal>
+      {/* Intro paragraph */}
+      <section className="bg-white py-12 sm:py-16">
+        <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
+          <p className="text-slate-600 text-lg leading-relaxed">
+            Founded on the belief that health should be accessible to all, Diafit was
+            created to bridge the gap between expert health advice and everyday practice.
+            Our journey began with a passion for wellness and a desire to make a positive
+            impact on the lives of people managing diabetes.
+          </p>
         </div>
       </section>
 
-      {/* Our Values – light cards, brand accents */}
+      {/* Our Core Values: text left, images right */}
       <section className="bg-slate-50 py-16 sm:py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <h2 className="text-center text-2xl font-bold text-slate-800 sm:text-3xl">
-            Our Values
+          <h2 className="text-center text-2xl font-bold text-slate-900 sm:text-3xl">
+            Our Core Values
           </h2>
-          <div className="mt-12 grid gap-8 sm:grid-cols-3">
-            <SpotlightCard
-              className="custom-spotlight-card border border-slate-200/80 bg-white shadow-sm"
-              spotlightColor="rgba(124, 58, 237, 0.12)"
-            >
-              <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-violet-100">
-                <img
-                  src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=400&q=80"
-                  alt="Patient-centered care"
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
-              </div>
-              <h3 className="mt-4 text-xl font-semibold text-slate-800">
-                Patient-Centered
-              </h3>
-              <p className="mt-2 text-slate-600">
-                Everything we do is designed with our users&apos; health and
-                well-being in mind.
-              </p>
-            </SpotlightCard>
-            <SpotlightCard
-              className="custom-spotlight-card border border-slate-200/80 bg-white shadow-sm"
-              spotlightColor="rgba(37, 99, 235, 0.12)"
-            >
-              <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-blue-100">
-                <img
-                  src="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&q=80"
-                  alt="Security and privacy"
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
-              </div>
-              <h3 className="mt-4 text-xl font-semibold text-slate-800">
-                Privacy & Security
-              </h3>
-              <p className="mt-2 text-slate-600">
-                Your health data is protected with enterprise-grade encryption
-                and HIPAA compliance.
-              </p>
-            </SpotlightCard>
-            <SpotlightCard
-              className="custom-spotlight-card border border-slate-200/80 bg-white shadow-sm"
-              spotlightColor="rgba(124, 58, 237, 0.12)"
-            >
-              <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-violet-100">
-                <img
-                  src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&q=80"
-                  alt="Innovation and data"
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
-              </div>
-              <h3 className="mt-4 text-xl font-semibold text-slate-800">
-                Innovation
-              </h3>
-              <p className="mt-2 text-slate-600">
-                We continuously improve our AI algorithms to provide better
-                insights and recommendations.
-              </p>
-            </SpotlightCard>
+          <div className="mt-12 grid gap-12 lg:grid-cols-2 lg:gap-16">
+            <div className="space-y-12">
+              {CORE_VALUES.map((value, i) => (
+                <div key={value.title}>
+                  <h3 className="text-xl font-bold text-slate-900">{value.title}</h3>
+                  <p className="mt-2 text-slate-600 leading-relaxed">{value.description}</p>
+                </div>
+              ))}
+            </div>
+            <div className="space-y-6">
+              {CORE_VALUES.map((value) => (
+                <div
+                  key={value.title}
+                  className="overflow-hidden rounded-xl border border-slate-200 shadow-md"
+                >
+                  <img
+                    src={value.image}
+                    alt={value.alt}
+                    className="h-48 w-full object-cover sm:h-56"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Stats – dark strip so white text stays visible */}
-      <section className="bg-[var(--diafit-section-accent)]">
-        <StatsSection />
+      {/* Meet Our Expert Team: ChromaGrid with sky blue cards */}
+      <section className="bg-[#FFFBEB] py-16 sm:py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <h2 className="text-center text-2xl font-bold text-slate-900 sm:text-3xl">
+            Meet Our Expert Team
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-center text-slate-600">
+            A dedicated team of developers and designers committed to your health and
+            wellness journey.
+          </p>
+          <div className="mt-12" style={{ minHeight: "520px", position: "relative" }}>
+            <ChromaGrid
+              items={TEAM.map((member) => ({
+                image: member.avatarUrl,
+                title: member.name,
+                subtitle: member.title,
+                handle: `@${member.name.replace(/\s+/g, "").toLowerCase()}`,
+                borderColor: "#93C5FD",
+                gradient: "#B7D6FB",
+              }))}
+              radius={300}
+              damping={0.45}
+              fadeOut={0.6}
+              ease="power3.out"
+              lightBackground
+            />
+          </div>
+        </div>
       </section>
 
-      {/* Built by Experts */}
-      <section className="bg-white py-16 sm:py-20">
+      {/* Quote + doctor image */}
+      <section className="bg-[#FFFBEB] py-16 sm:py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="mb-12 text-center sm:mb-16">
-            <h2 className="text-2xl font-bold text-slate-800 sm:text-3xl">
-              Built by Experts
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-slate-600">
-              Our team includes endocrinologists, AI researchers, and software
-              engineers dedicated to improving diabetes care.
-            </p>
+          <div className="grid items-center gap-12 rounded-2xl bg-white p-8 shadow-md sm:p-10 lg:grid-cols-2 lg:gap-16">
+            <div>
+              <blockquote className="text-slate-700 text-lg leading-relaxed sm:text-xl">
+                &ldquo;Eating a balanced diet rich in whole foods is crucial for
+                maintaining optimal health and wellness. Proper nutrition not only fuels
+                our bodies but also plays a significant role in preventing chronic
+                diseases.&rdquo;
+              </blockquote>
+              <p className="mt-4 text-slate-500 text-sm">— Diafit Health Team</p>
+              <Link
+                to="/#services"
+                className="mt-4 inline-block font-medium text-blue-600 hover:text-blue-700"
+              >
+                Read more →
+              </Link>
+            </div>
+            <div className="overflow-hidden rounded-xl">
+              <img
+                src="https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=600&q=80"
+                alt="Healthcare professional"
+                className="h-72 w-full object-cover sm:h-80"
+              />
+            </div>
           </div>
-          <TeamSection />
+        </div>
+      </section>
+
+      {/* FAQ: two columns */}
+      <section id="faqs" className="bg-white py-16 sm:py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="grid gap-12 lg:grid-cols-12">
+            <div className="lg:col-span-4">
+              <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+                Frequently Asked Questions
+              </h2>
+            </div>
+            <div className="lg:col-span-8">
+              <FAQAccordion />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Health Tips & Insights */}
+      <section className="bg-slate-50 py-16 sm:py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <h2 className="text-center text-2xl font-bold text-slate-900 sm:text-3xl">
+            Health Tips & Insights
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-center text-slate-600">
+            Additional educational resources for optimal health & wellness.
+          </p>
+          <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {HEALTH_TIPS.map((tip) => (
+              <Link
+                key={tip.title}
+                to={tip.href}
+                className="group overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md"
+              >
+                <div className="aspect-[4/3] overflow-hidden">
+                  <img
+                    src={tip.image}
+                    alt=""
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                </div>
+                <div className="p-5">
+                  <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-slate-600 text-xs font-medium">
+                    {tip.tag}
+                  </span>
+                  <h3 className="mt-3 font-semibold text-slate-900 group-hover:text-blue-600">
+                    {tip.title}
+                  </h3>
+                  <p className="mt-2 text-slate-600 text-sm leading-relaxed">
+                    {tip.description}
+                  </p>
+                  <span className="mt-3 inline-block font-medium text-blue-600 text-sm group-hover:underline">
+                    Learn More →
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
     </div>
