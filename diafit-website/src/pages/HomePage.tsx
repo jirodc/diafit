@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { GetStartedButton } from "@/components/GetStartedButton";
 import { motion } from "motion/react";
@@ -14,7 +14,7 @@ import {
   Heart,
 } from "lucide-react";
 
-import heroHandVideo from "@/HeroSection_hand.mp4";
+import heroSectionHand from "@/Herosectionlandinghand.png";
 
 const SKY_BLUE = "#B7D6FB";
 
@@ -74,7 +74,6 @@ const HOW_IT_WORKS = [
 
 export default function HomePage() {
   const location = useLocation();
-  const heroVideoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     if (location.hash === "#download") {
@@ -82,58 +81,35 @@ export default function HomePage() {
     }
   }, [location.hash]);
 
-  useEffect(() => {
-    const video = heroVideoRef.current;
-    if (!video) return;
-
-    const playReverse = () => {
-      video.playbackRate = -1;
-      video.play().catch(() => {});
-    };
-    const playForward = () => {
-      video.playbackRate = 1;
-      video.play().catch(() => {});
-    };
-
-    const onEnded = () => {
-      if (video.playbackRate === 1) {
-        playReverse();
-      } else {
-        playForward();
-      }
-    };
-
-    const onTimeUpdate = () => {
-      if (video.playbackRate === -1 && video.currentTime <= 0) {
-        video.currentTime = 0;
-        video.pause();
-        playForward();
-      }
-    };
-
-    video.addEventListener("ended", onEnded);
-    video.addEventListener("timeupdate", onTimeUpdate);
-    playForward();
-
-    return () => {
-      video.removeEventListener("ended", onEnded);
-      video.removeEventListener("timeupdate", onTimeUpdate);
-    };
-  }, []);
-
   return (
-    <div className="min-h-screen bg-white">
-      {/* Hero – blue background + video that plays forward then reverse (ping-pong loop) */}
-      <section id="download" className="relative flex min-h-[80vh] w-full flex-col justify-center px-4 pt-24 pb-16 sm:px-6 sm:pt-28 sm:pb-20" style={{ backgroundColor: SKY_BLUE }}>
-        <div className="flex w-full justify-start">
-          <video
-            ref={heroVideoRef}
-            src={heroHandVideo}
-            className="h-auto max-h-[70vh] w-auto max-w-full object-contain object-left ml-4 sm:ml-8 lg:ml-12"
-            muted
-            playsInline
-            aria-label="Hand with Diafit app on phone"
-          />
+    <div className="min-h-0 w-full bg-white">
+      {/* Hero – blue background + Herosectionlandinghand.png, animate left to right (ease-in-out) */}
+      <section id="download" className="relative -mt-20 flex min-h-screen w-full min-w-0 flex-col justify-center pt-8 pb-16 sm:pt-10 sm:pb-20 lg:-mt-24 lg:min-h-screen lg:flex-row lg:items-center lg:justify-between lg:gap-8 lg:pt-12 lg:pb-24" style={{ backgroundColor: SKY_BLUE }}>
+        {/* Darker gradient overlay on the left */}
+        
+        {/* H1 is absolute — use bottom-* (e.g. bottom-8) to pin to bottom, or top-* for top; left-* / right-* for horizontal */}
+        <h1 className="absolute bottom-0 left-4 z-50 text-[8rem] font-bold leading-none tracking-tight text-blue-700 sm:left-6 sm:text-[14rem] lg:bottom-140 lg:left-8 lg:text-[10rem]">
+          DIAFIT
+        </h1> 
+        <div className="mt-12 flex w-full min-w-0 flex-1 flex-col justify-start sm:mt-35 lg:mt-40">
+          <div className="flex w-full justify-start">
+            <motion.img
+              src={heroSectionHand}
+              alt="Hand holding phone with Diafit app"
+              className="h-auto w-auto max-w-full object-contain object-left sm:max-h-[60vh] lg:max-h-[75vh]"
+              initial={{ x: -120, opacity: 0 }} 
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ duration: 0.9, ease: "easeInOut" }}
+            />
+          </div>
+          
+        </div>
+        <div className="items-center  ">
+          <h2 className=" text-2xl font-bold text-blue-700">Manage your diabetes
+            <br /> with Ai-powered <br /> <span className="text-blue-500">insights</span></h2>
+          <p className="mt-4 max-w-md  text-slate-600">
+            Track glucose levels, get personalized meal plans, and receive intelligent health recommendations—all in one place.
+          </p>
         </div>
       </section>
 
