@@ -14,7 +14,6 @@ import {
   Heart,
 } from "lucide-react";
 
-import heroGlucose from "@/HeroGlucose.png";
 import backgroundHero from "@/backgroundhero.png";
 
 const SKY_BLUE = "#B7D6FB";
