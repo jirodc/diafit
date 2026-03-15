@@ -120,19 +120,16 @@ export default function AboutPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Template 2: Thin sky blue bar at top */}
-      <div className="h-2 w-full" style={{ backgroundColor: SKY_BLUE }} />
-
-      {/* Template 1: Hero – dark background, centered headline */}
-      <section className="relative min-h-[50vh] overflow-hidden bg-slate-800">
+    <div className="min-h-0 w-full bg-white">
+      {/* Hero – extends behind the header */}
+      <section className="relative -mt-14 min-h-[60vh] overflow-hidden bg-slate-800 sm:-mt-16 lg:-mt-20">
         <img
           src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1600&q=80"
           alt=""
           className="absolute inset-0 h-full w-full object-cover opacity-60"
         />
         <div className="absolute inset-0 bg-slate-900/50" />
-        <div className="relative flex min-h-[50vh] flex-col items-center justify-center px-4 py-24 text-center sm:py-28">
+        <div className="relative flex min-h-[60vh] flex-col items-center justify-center px-4 pt-28 pb-16 text-center sm:pt-32 sm:pb-20 lg:pt-36">
           <h1 className="max-w-4xl text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
             We&apos;re designing a new way to manage diabetes
           </h1>
