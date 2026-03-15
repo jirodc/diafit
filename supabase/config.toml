@@ -1,0 +1,6 @@
+# Edge Function config: let the request reach the function without gateway JWT check.
+# Our function validates the JWT itself with auth.getUser() and only allows admin@diafit.com.
+# See: https://supabase.com/docs/guides/functions/function-configuration
+
+[functions.create-website-user]
+verify_jwt = false

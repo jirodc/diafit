@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 
 const PROFILE_KEY = '@diafit_profile_complete';
+const ONBOARDING_KEY = '@diafit_onboarding_complete';
 
 export default function IndexScreen() {
   const router = useRouter();
@@ -12,15 +13,12 @@ export default function IndexScreen() {
   useEffect(() => {
     const checkAuthAndOnboarding = async () => {
       try {
-<<<<<<< HEAD
-=======
         // To see onboarding again: set forceOnboardingInDev = true (and reload), and ensure you're signed out.
         const forceOnboardingInDev = true;
         if (__DEV__ && forceOnboardingInDev) {
           await AsyncStorage.multiRemove([ONBOARDING_KEY, PROFILE_KEY]);
         }
 
->>>>>>> layouts/ui
         const { data: { session } } = await supabase.auth.getSession();
 
         if (session?.user) {

@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { PieChart, Pie, Sector, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { useState, useMemo, useEffect } from "react";
+import { PieChart, Pie, Cell, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { renderPieLabelInside } from "@/components/admin/PieChartCustomLabel";
 import { RechartsDevtools } from "@recharts/devtools";
 import { AdminHeader } from "./AdminLayout";
 import { useAdminConfirm } from "@/contexts/AdminModalContext";
+import { fetchWorkoutLogs, fetchWorkoutCharts, type WorkoutLogRow, type DateRange } from "@/lib/adminData";
+import { DateRangeFilter } from "@/components/admin/DateRangeFilter";
 import {
   Layers,
   Users,
@@ -16,83 +18,84 @@ import {
   Eye,
 } from "lucide-react";
 
-const KPI_CARDS = [
-  { title: "Total Sessions", value: "14,392", change: "10% this week", icon: Layers, iconBg: "bg-blue-100", iconColor: "text-blue-600" },
-  { title: "Active Users", value: "2,156", change: "12% this week", icon: Users, iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
-  { title: "Avg. Duration", value: "23 min", change: "10% this week", icon: Timer, iconBg: "bg-violet-100", iconColor: "text-violet-600" },
-  { title: "Completion Rate", value: "87%", change: "13% this week", icon: CheckCircle, iconBg: "bg-amber-100", iconColor: "text-amber-600" },
+function formatWorkoutDate(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffMins < 60) return `${diffMins} min ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+const DEFAULT_WEEKLY = [
+  { day: "Sun", sessions: 0 },
+  { day: "Mon", sessions: 0 },
+  { day: "Tue", sessions: 0 },
+  { day: "Wed", sessions: 0 },
+  { day: "Thu", sessions: 0 },
+  { day: "Fri", sessions: 0 },
+  { day: "Sat", sessions: 0 },
 ];
-
-const POPULAR_EXERCISES = [
-  { name: "Squats", activeUsers: 2850, completedSessions: 2720 },
-  { name: "Push-ups", activeUsers: 2640, completedSessions: 2510 },
-  { name: "Plank", activeUsers: 2420, completedSessions: 2280 },
-  { name: "Jumping Jacks", activeUsers: 2180, completedSessions: 2050 },
-  { name: "Lunges", activeUsers: 1950, completedSessions: 1820 },
-  { name: "Burpees", activeUsers: 1720, completedSessions: 1580 },
-  { name: "Mountain Climbers", activeUsers: 1520, completedSessions: 1410 },
-  { name: "Leg Raises", activeUsers: 1380, completedSessions: 1260 },
-];
-
-const CATEGORY_PREFERENCES = [
-  { name: "Strength", value: 41, color: "#8884d8" },
-  { name: "Cardio", value: 30, color: "#83a6ed" },
-  { name: "Flexibility", value: 15, color: "#8dd1e1" },
-  { name: "Balance", value: 8, color: "#82ca9d" },
-  { name: "HIIT", value: 7, color: "#a4de6c" },
-  { name: "Others", value: 14, color: "url(#pattern-checkers)" },
-];
-
-const categoryColors = CATEGORY_PREFERENCES.map((c) => c.color);
-
-const CategoryPieCell = (props: React.ComponentProps<typeof Sector> & { index?: number }) => (
-  <Sector {...props} fill={categoryColors[props.index ?? 0]} />
-);
-
-const WEEKLY_TREND = [
-  { day: "Mon", sessions: 520 },
-  { day: "Tue", sessions: 680 },
-  { day: "Wed", sessions: 920 },
-  { day: "Thu", sessions: 1100 },
-  { day: "Fri", sessions: 850 },
-  { day: "Sat", sessions: 1400 },
-  { day: "Sun", sessions: 1220 },
-];
-
-const TOP_ACTIVE_USERS = [
-  { name: "Sarah J.", sessions: 45, hours: 12.5 },
-  { name: "Michael C.", sessions: 42, hours: 11.5 },
-  { name: "Emily D.", sessions: 35, hours: 10.2 },
-  { name: "Robert W.", sessions: 35, hours: 9.6 },
-  { name: "Jennifer T.", sessions: 33, hours: 8.8 },
-];
-
-const USER_EXERCISE_ROWS = [
-  { id: "1", name: "Sarah Johnson", email: "sarah@example.com", initials: "SJ", exercises: ["Squats", "Push-ups", "Plank", "Jumping Jacks"], totalSessions: 45, lastActivity: "2 hours ago" },
-  { id: "2", name: "Michael Chen", email: "michael@example.com", initials: "MC", exercises: ["Plank", "Mountain Climbers", "Lunges"], totalSessions: 42, lastActivity: "5 hours ago" },
-  { id: "3", name: "Emily Davis", email: "emily@example.com", initials: "ED", exercises: ["Plank", "Leg Raises", "Burpees", "Yoga"], totalSessions: 38, lastActivity: "1 hour ago" },
-  { id: "4", name: "Robert Wilson", email: "robert@example.com", initials: "RW", exercises: ["Squats", "Lunges", "Jumping Jacks"], totalSessions: 35, lastActivity: "3 hours ago" },
-  { id: "5", name: "Jennifer Taylor", email: "jennifer@example.com", initials: "JT", exercises: ["Push-ups", "Plank", "Burpees"], totalSessions: 33, lastActivity: "6 hours ago" },
-  { id: "6", name: "David Martinez", email: "david@example.com", initials: "DM", exercises: ["Squats", "Mountain Climbers", "Leg Raises"], totalSessions: 28, lastActivity: "1 day ago" },
-];
-
 
 export function AdminExerciseMonitoring() {
+  const [dateRange, setDateRange] = useState<DateRange>("all");
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState("this-week");
+  const [workoutLogs, setWorkoutLogs] = useState<WorkoutLogRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [popularExercises, setPopularExercises] = useState<{ name: string; activeUsers: number; completedSessions: number }[]>([]);
+  const [weeklyTrend, setWeeklyTrend] = useState<{ day: string; sessions: number }[]>(DEFAULT_WEEKLY);
+  const [categoryPreferences, setCategoryPreferences] = useState<{ name: string; value: number; color: string }[]>([]);
   const confirm = useAdminConfirm();
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    Promise.all([fetchWorkoutLogs(80, dateRange), fetchWorkoutCharts(dateRange)])
+      .then(([rows, charts]) => {
+        if (cancelled) return;
+        setWorkoutLogs(rows);
+        setPopularExercises(charts.popular || []);
+        setWeeklyTrend(charts.weekly?.length ? charts.weekly : DEFAULT_WEEKLY);
+        setCategoryPreferences(charts.categoryPreferences?.length ? charts.categoryPreferences : [{ name: "No data", value: 100, color: "#e2e8f0" }]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [dateRange]);
+
+  const topActiveUsers = useMemo(() => {
+    const byUser = new Map<string, { name: string; sessions: number; minutes: number }>();
+    for (const row of workoutLogs) {
+      const cur = byUser.get(row.user_id);
+      const name = row.user_name ?? "Unknown";
+      if (!cur) byUser.set(row.user_id, { name, sessions: 1, minutes: row.duration_minutes ?? 0 });
+      else {
+        cur.sessions += 1;
+        cur.minutes += row.duration_minutes ?? 0;
+      }
+    }
+    return [...byUser.values()]
+      .map((u) => ({ name: u.name.length > 12 ? u.name.slice(0, 10) + "…" : u.name, sessions: u.sessions, hours: Math.round((u.minutes / 60) * 10) / 10 }))
+      .sort((a, b) => b.sessions - a.sessions)
+      .slice(0, 5);
+  }, [workoutLogs]);
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return USER_EXERCISE_ROWS;
-    return USER_EXERCISE_ROWS.filter(
+    if (!q) return workoutLogs;
+    return workoutLogs.filter(
       (r) =>
-        r.name.toLowerCase().includes(q) ||
-        r.email.toLowerCase().includes(q) ||
-        r.exercises.some((e) => e.toLowerCase().includes(q))
+        (r.user_name ?? "").toLowerCase().includes(q) ||
+        (r.custom_workout_name ?? "").toLowerCase().includes(q)
     );
-  }, [search]);
+  }, [workoutLogs, search]);
 
   const handleExport = () => {
     confirm({
@@ -110,22 +113,63 @@ export function AdminExerciseMonitoring() {
         subtitle="Track what exercises users are doing and engagement metrics"
       />
       <div className="p-6">
+        <div className="mb-4 flex flex-wrap items-center justify-end">
+          <DateRangeFilter value={dateRange} onChange={setDateRange} />
+        </div>
         {/* KPI row */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {KPI_CARDS.map(({ title, value, change, icon: Icon, iconBg, iconColor }) => (
-            <div key={title} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-500">{title}</p>
-                  <p className="mt-1 text-2xl font-semibold text-slate-900">{value}</p>
-                  <p className="mt-1 text-xs font-medium text-emerald-600">{change}</p>
-                </div>
-                <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${iconBg} ${iconColor}`}>
-                  <Icon className="h-5 w-5" />
-                </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500">Total Sessions</p>
+                <p className="mt-1 text-2xl font-semibold text-slate-900">{loading ? "…" : workoutLogs.length}</p>
+                <p className="mt-1 text-xs font-medium text-emerald-600">From database</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+                <Layers className="h-5 w-5" />
               </div>
             </div>
-          ))}
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500">Active Users</p>
+                <p className="mt-1 text-2xl font-semibold text-slate-900">
+                  {loading ? "…" : new Set(workoutLogs.map((r) => r.user_id)).size}
+                </p>
+                <p className="mt-1 text-xs font-medium text-emerald-600">With workout logs</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                <Users className="h-5 w-5" />
+              </div>
+            </div>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500">Avg. Duration</p>
+                <p className="mt-1 text-2xl font-semibold text-slate-900">
+                  {loading ? "…" : workoutLogs.length ? Math.round(workoutLogs.reduce((a, r) => a + (r.duration_minutes ?? 0), 0) / workoutLogs.length) + " min" : "0 min"}
+                </p>
+                <p className="mt-1 text-xs font-medium text-emerald-600">Per session</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
+                <Timer className="h-5 w-5" />
+              </div>
+            </div>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500">Completion Rate</p>
+                <p className="mt-1 text-2xl font-semibold text-slate-900">{workoutLogs.length ? "100%" : "—"}</p>
+                <p className="mt-1 text-xs font-medium text-emerald-600">Logged sessions</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                <CheckCircle className="h-5 w-5" />
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Most Popular + Category Preferences */}
@@ -135,9 +179,9 @@ export function AdminExerciseMonitoring() {
             <p className="mt-0.5 text-sm text-slate-500">What users are exercising the most</p>
             <div className="mt-4 h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={POPULAR_EXERCISES} layout="vertical" margin={{ top: 4, right: 24, left: 4, bottom: 4 }}>
+                <BarChart data={popularExercises.length ? popularExercises : [{ name: "—", activeUsers: 0, completedSessions: 0 }]} layout="vertical" margin={{ top: 4, right: 24, left: 4, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
-                  <XAxis type="number" domain={[0, 3000]} tick={{ fontSize: 11, fill: "#64748b" }} />
+                  <XAxis type="number" domain={[0, "auto"]} tick={{ fontSize: 11, fill: "#64748b" }} />
                   <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 11, fill: "#475569" }} />
                   <Tooltip cursor={{ fill: "#f1f5f9" }} contentStyle={{ fontSize: 12 }} />
                   <Bar dataKey="activeUsers" name="Active Users" fill="#8884d8" radius={[0, 4, 4, 0]} />
@@ -169,7 +213,7 @@ export function AdminExerciseMonitoring() {
                   </pattern>
                 </defs>
                 <Pie
-                  data={CATEGORY_PREFERENCES}
+                  data={categoryPreferences}
                   dataKey="value"
                   nameKey="name"
                   cx="50%"
@@ -177,20 +221,19 @@ export function AdminExerciseMonitoring() {
                   outerRadius={100}
                   paddingAngle={1}
                   isAnimationActive
-                  shape={CategoryPieCell}
                   label={renderPieLabelInside}
                   labelLine={false}
-                />
+                >
+                  {categoryPreferences.map((entry, i) => (
+                    <Cell key={entry.name} fill={entry.color} />
+                  ))}
+                </Pie>
                 <RechartsDevtools />
               </PieChart>
               <ul className="space-y-1.5">
-                {CATEGORY_PREFERENCES.map((c) => (
+                {categoryPreferences.map((c) => (
                   <li key={c.name} className="flex items-center gap-2 text-sm">
-                    {c.color.startsWith("url") ? (
-                      <span className="h-3 w-3 shrink-0 rounded border border-slate-300 bg-slate-300" title="Checkerboard" />
-                    ) : (
-                      <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
-                    )}
+                    <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
                     <span className="text-slate-700">{c.name}</span>
                     <span className="font-medium text-slate-900">{c.value}%</span>
                   </li>
@@ -208,7 +251,7 @@ export function AdminExerciseMonitoring() {
             <div className="mt-4 h-64 min-h-[240px] w-full" style={{ maxWidth: "100%" }}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
-                  data={WEEKLY_TREND}
+                  data={weeklyTrend}
                   margin={{ top: 20, right: 16, left: 0, bottom: 8 }}
                   onContextMenu={(_, e) => e?.preventDefault?.()}
                 >
@@ -227,7 +270,7 @@ export function AdminExerciseMonitoring() {
             <h2 className="font-semibold text-slate-900">Top Active Users</h2>
             <p className="mt-0.5 text-sm text-slate-500">Users with most exercise engagement this month</p>
             <ul className="mt-4 space-y-3">
-              {TOP_ACTIVE_USERS.map((u, i) => (
+              {topActiveUsers.map((u, i) => (
                 <li key={u.name} className="flex items-center gap-3 rounded-lg border border-slate-100 py-2.5 pl-3 pr-2">
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-700">
                     {i + 1}
@@ -296,41 +339,34 @@ export function AdminExerciseMonitoring() {
               <thead>
                 <tr className="border-t border-slate-200 bg-slate-50/80">
                   <th className="px-5 py-3 font-medium text-slate-700">User</th>
-                  <th className="px-5 py-3 font-medium text-slate-700">Exercises They&apos;re Doing</th>
-                  <th className="px-5 py-3 font-medium text-slate-700">Total Sessions</th>
-                  <th className="px-5 py-3 font-medium text-slate-700">Last Activity</th>
+                  <th className="px-5 py-3 font-medium text-slate-700">Workout</th>
+                  <th className="px-5 py-3 font-medium text-slate-700">Duration</th>
+                  <th className="px-5 py-3 font-medium text-slate-700">Calories</th>
+                  <th className="px-5 py-3 font-medium text-slate-700">Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredRows.map((row) => (
-                  <tr key={row.id} className="hover:bg-slate-50/50">
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-700">
-                          {row.initials}
-                        </div>
-                        <div>
-                          <p className="font-medium text-slate-900">{row.name}</p>
-                          <p className="text-slate-500">{row.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3">
-                      <div className="flex flex-wrap gap-1.5">
-                        {row.exercises.map((ex) => (
-                          <span
-                            key={ex}
-                            className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700"
-                          >
-                            {ex}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-5 py-3 text-slate-700">{row.totalSessions}</td>
-                    <td className="px-5 py-3 text-slate-600">{row.lastActivity}</td>
-                  </tr>
-                ))}
+                {loading ? (
+                  <tr><td colSpan={5} className="px-5 py-8 text-center text-slate-500">Loading…</td></tr>
+                ) : filteredRows.length === 0 ? (
+                  <tr><td colSpan={5} className="px-5 py-8 text-center text-slate-500">No workout logs found</td></tr>
+                ) : (
+                  filteredRows.map((row) => (
+                    <tr key={row.id} className="hover:bg-slate-50/50">
+                      <td className="px-5 py-3">
+                        <p className="font-medium text-slate-900">{row.user_name ?? "Unknown"}</p>
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                          {row.custom_workout_name || "Workout"}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 text-slate-700">{row.duration_minutes ?? 0} min</td>
+                      <td className="px-5 py-3 text-slate-700">{row.calories_burned ?? 0}</td>
+                      <td className="px-5 py-3 text-slate-600">{formatWorkoutDate(row.workout_date)}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { AdminHeader } from "./AdminLayout";
 import { useAdminConfirm } from "@/contexts/AdminModalContext";
+import { fetchAdminUsers, type AdminUserRow } from "@/lib/adminData";
 import { Search, Download, Eye, Pencil, X } from "lucide-react";
 
-export type UserRole = "Patient" | "Doctor" | "Admin";
+export type UserRole = "Super admin" | "Admin" | "Patient";
 export type UserStatus = "active" | "pending" | "inactive";
 
 export interface AdminUser {
@@ -19,13 +20,18 @@ export interface AdminUser {
   glucoseReadings: number;
 }
 
-const MOCK_USERS: AdminUser[] = [
-  { id: "1", name: "Bryan Cancel", email: "john@example.com", initials: "BC", role: "Patient", status: "active", lastActive: "2 hours ago", glucoseReadings: 234 },
-  { id: "2", name: "Sue Jan", email: "sue@example.com", initials: "SJ", role: "Patient", status: "active", lastActive: "1 day ago", glucoseReadings: 189 },
-  { id: "3", name: "Michael Chen", email: "michael@example.com", initials: "MC", role: "Patient", status: "pending", lastActive: "3 days ago", glucoseReadings: 56 },
-  { id: "4", name: "Emily Davis", email: "emily@example.com", initials: "ED", role: "Patient", status: "active", lastActive: "5 hours ago", glucoseReadings: 412 },
-  { id: "5", name: "Robert Wilson", email: "robert@example.com", initials: "RW", role: "Patient", status: "active", lastActive: "1 hour ago", glucoseReadings: 98 },
-];
+function rowToUser(r: AdminUserRow): AdminUser {
+  return {
+    id: r.id,
+    name: r.name,
+    email: r.email ?? "",
+    initials: r.initials,
+    role: r.role,
+    status: r.status as UserStatus,
+    lastActive: r.lastActive,
+    glucoseReadings: r.glucoseReadings,
+  };
+}
 
 function UserDetailsModal({
   user,
@@ -78,7 +84,16 @@ function UserDetailsModal({
           </div>
           <div>
             <dt className="text-sm font-medium text-slate-500">Status</dt>
-            <dd className="mt-0.5 capitalize text-slate-900">{user.status}</dd>
+            <dd className="mt-0.5">
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+                  user.status === "active" ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                {user.status === "active" && <span className="h-1.5 w-1.5 rounded-full bg-white" aria-hidden />}
+                {user.status === "active" ? "Active" : "Inactive"}
+              </span>
+            </dd>
           </div>
           <div>
             <dt className="text-sm font-medium text-slate-500">Glucose Readings</dt>
@@ -101,16 +116,12 @@ function EditUserModal({
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<UserRole>("Patient");
-  const [status, setStatus] = useState<UserStatus>("active");
   const confirm = useAdminConfirm();
 
   useEffect(() => {
     if (user) {
       setName(user.name);
       setEmail(user.email);
-      setRole(user.role);
-      setStatus(user.status);
     }
   }, [user]);
 
@@ -141,14 +152,14 @@ function EditUserModal({
             ...user,
             name,
             email,
-            role,
-            status,
+            role: user?.role ?? "Patient",
+            status: user?.status ?? "inactive",
           });
           onClose();
         },
       });
     },
-    [user, name, email, role, status, confirm, onSave, onClose]
+    [user, name, email, confirm, onSave, onClose]
   );
 
   if (!user) return null;
@@ -188,30 +199,23 @@ function EditUserModal({
             />
           </div>
           <div>
-            <label htmlFor="edit-role" className="block text-sm font-medium text-slate-700">Role</label>
-            <select
-              id="edit-role"
-              value={role}
-              onChange={(e) => setRole(e.target.value as UserRole)}
-              className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 outline-none focus:border-[var(--diafit-blue)] focus:ring-1 focus:ring-[var(--diafit-blue)]"
-            >
-              <option value="Patient">Patient</option>
-              <option value="Doctor">Doctor</option>
-              <option value="Admin">Admin</option>
-            </select>
+            <label className="block text-sm font-medium text-slate-700">Role</label>
+            <p className="mt-1 text-slate-900">{user?.role ?? "Patient"}</p>
+            <p className="mt-0.5 text-xs text-slate-500">Role is determined by email (admin@diafit.com → Super admin, *@diafit.com → Admin, else → Patient).</p>
           </div>
           <div>
-            <label htmlFor="edit-status" className="block text-sm font-medium text-slate-700">Status</label>
-            <select
-              id="edit-status"
-              value={status}
-              onChange={(e) => setStatus(e.target.value as UserStatus)}
-              className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 outline-none focus:border-[var(--diafit-blue)] focus:ring-1 focus:ring-[var(--diafit-blue)]"
-            >
-              <option value="active">Active</option>
-              <option value="pending">Pending</option>
-              <option value="inactive">Inactive</option>
-            </select>
+            <label className="block text-sm font-medium text-slate-700">Status</label>
+            <p className="mt-1 flex items-center gap-2">
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+                  user?.status === "active" ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                {user?.status === "active" && <span className="h-1.5 w-1.5 rounded-full bg-white" aria-hidden />}
+                {user?.status === "active" ? "Active" : "Inactive"}
+              </span>
+            </p>
+            <p className="mt-0.5 text-xs text-slate-500">Based on recent activity (active = logged a workout, meal, or task within the last 10 min).</p>
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
@@ -228,17 +232,26 @@ function EditUserModal({
 }
 
 export function AdminUserManagement() {
-  const [users, setUsers] = useState<AdminUser[]>(MOCK_USERS);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [detailsUser, setDetailsUser] = useState<AdminUser | null>(null);
   const [editUser, setEditUser] = useState<AdminUser | null>(null);
   const confirm = useAdminConfirm();
 
+  useEffect(() => {
+    let cancelled = false;
+    fetchAdminUsers().then((rows) => {
+      if (!cancelled) setUsers(rows.map(rowToUser));
+    }).finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
   const filteredUsers = users.filter((u) => {
     const matchSearch =
       u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase());
+      (u.email && u.email.toLowerCase().includes(search.toLowerCase()));
     const matchStatus = statusFilter === "all" || u.status === statusFilter;
     return matchSearch && matchStatus;
   });
@@ -271,7 +284,6 @@ export function AdminUserManagement() {
             >
               <option value="all">All Status</option>
               <option value="active">Active</option>
-              <option value="pending">Pending</option>
               <option value="inactive">Inactive</option>
             </select>
             <button
@@ -294,6 +306,9 @@ export function AdminUserManagement() {
           </div>
         </div>
 
+        {loading ? (
+          <p className="py-8 text-center text-slate-500">Loading users…</p>
+        ) : (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-left text-sm">
@@ -308,7 +323,9 @@ export function AdminUserManagement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredUsers.map((user) => (
+                {filteredUsers.length === 0 ? (
+                  <tr><td colSpan={6} className="px-5 py-8 text-center text-slate-500">No users found</td></tr>
+                ) : filteredUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-slate-50/50">
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
@@ -324,15 +341,16 @@ export function AdminUserManagement() {
                     <td className="px-5 py-3 text-slate-700">{user.role}</td>
                     <td className="px-5 py-3">
                       <span
-                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
                           user.status === "active"
-                            ? "bg-slate-100 text-slate-700"
-                            : user.status === "pending"
-                              ? "bg-amber-100 text-amber-800"
-                              : "bg-slate-100 text-slate-500"
+                            ? "bg-emerald-500 text-white shadow-sm"
+                            : "bg-slate-100 text-slate-500"
                         }`}
                       >
-                        {user.status}
+                        {user.status === "active" && (
+                          <span className="h-1.5 w-1.5 rounded-full bg-white" aria-hidden />
+                        )}
+                        {user.status === "active" ? "Active" : "Inactive"}
                       </span>
                     </td>
                     <td className="px-5 py-3 text-slate-600">{user.lastActive}</td>
@@ -363,6 +381,7 @@ export function AdminUserManagement() {
             </table>
           </div>
         </div>
+        )}
       </div>
 
       <UserDetailsModal user={detailsUser} onClose={() => setDetailsUser(null)} />

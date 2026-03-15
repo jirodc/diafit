@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   PieChart,
   Pie,
-  Sector,
+  Cell,
   BarChart,
   Bar,
   AreaChart,
@@ -19,92 +19,85 @@ import { renderPieLabelInside } from "@/components/admin/PieChartCustomLabel";
 import { RechartsDevtools } from "@recharts/devtools";
 import { AdminHeader } from "./AdminLayout";
 import { useAdminConfirm } from "@/contexts/AdminModalContext";
+import { fetchMealLogs, fetchMealCharts, type MealLogRow, type DateRange } from "@/lib/adminData";
+import { DateRangeFilter } from "@/components/admin/DateRangeFilter";
 import { UtensilsCrossed, Users, Flame, TrendingUp, Search, Download, Eye } from "lucide-react";
 
-const KPI_CARDS = [
-  { title: "Total Meal Logs", value: "19,159", change: "11.5% this week", icon: UtensilsCrossed, iconBg: "bg-blue-100", iconColor: "text-blue-600" },
-  { title: "Active Trackers", value: "1,847", change: "12.3% this week", icon: Users, iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
-  { title: "Avg. Calories/Day", value: "1,865", change: "Within target range", icon: Flame, iconBg: "bg-amber-100", iconColor: "text-amber-600" },
-  { title: "Logging Rate", value: "82%", change: "1.5% this week", icon: TrendingUp, iconBg: "bg-violet-100", iconColor: "text-violet-600" },
+function formatMealTime(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffMins < 60) return `${diffMins} min ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+const DEFAULT_WEEKLY_MEALS = [
+  { day: "Sun", meals: 0 },
+  { day: "Mon", meals: 0 },
+  { day: "Tue", meals: 0 },
+  { day: "Wed", meals: 0 },
+  { day: "Thu", meals: 0 },
+  { day: "Fri", meals: 0 },
+  { day: "Sat", meals: 0 },
 ];
-
-const POPULAR_MEALS = [
-  { name: "Grilled Chicken Salad", activeUsers: 1320, totalLogs: 1280 },
-  { name: "Baked Salmon", activeUsers: 1180, totalLogs: 1120 },
-  { name: "Quinoa Bowl", activeUsers: 1050, totalLogs: 980 },
-  { name: "Protein Pancakes", activeUsers: 920, totalLogs: 860 },
-  { name: "Avocado Toast", activeUsers: 850, totalLogs: 790 },
-  { name: "Smoothies", activeUsers: 780, totalLogs: 720 },
-  { name: "Peanut Butter", activeUsers: 680, totalLogs: 620 },
-];
-
-const MEAL_TIME_PREFERENCES = [
-  { name: "Lunch", value: 32, color: "#22c55e" },
-  { name: "Dinner", value: 30, color: "#3b82f6" },
-  { name: "Breakfast", value: 28, color: "#f97316" },
-  { name: "Snacks", value: 10, color: "#8b5cf6" },
-];
-
-const WEEKLY_MEAL_LOGS = [
-  { day: "Mon", meals: 1980 },
-  { day: "Tue", meals: 1650 },
-  { day: "Wed", meals: 1420 },
-  { day: "Thu", meals: 1580 },
-  { day: "Fri", meals: 1720 },
-  { day: "Sat", meals: 1520 },
-  { day: "Sun", meals: 1480 },
-];
-
-const CALORIE_RANGES = [
-  { name: "Less than 500", value: 45, color: "#3b82f6" },
-  { name: "500-750", value: 25, color: "#f97316" },
-  { name: "750-1000", value: 15, color: "#ec4899" },
-  { name: "Over 1000", value: 15, color: "#22c55e" },
-];
-
-const TOP_MEAL_LOGGERS = [
-  { name: "Emma S.", mealLogs: 84 },
-  { name: "James P.", mealLogs: 81 },
-  { name: "Olivia M.", mealLogs: 78 },
-  { name: "Noah K.", mealLogs: 75 },
-  { name: "Ava L.", mealLogs: 72 },
-];
-
-const USER_MEAL_ROWS = [
-  { id: "1", name: "Bryan Cancel", email: "bryan@example.com", initials: "BC", meals: ["Grilled Chicken Salad", "Quinoa Bowl", "Greek Yogurt", "Salmon"], totalLogs: 84, avgCalories: 1853, lastMeal: "1 hour ago" },
-  { id: "2", name: "Jan Parker", email: "jan@example.com", initials: "JP", meals: ["Baked Salmon", "Quinoa Bowl", "Protein Pancakes", "Avocado Toast"], totalLogs: 81, avgCalories: 2133, lastMeal: "2 hours ago" },
-  { id: "3", name: "Chad Martinez", email: "chad@example.com", initials: "CM", meals: ["Grilled Chicken Salad", "Smoothie Fruit", "Salad", "Fruit Bowl"], totalLogs: 78, avgCalories: 1853, lastMeal: "30 min ago" },
-  { id: "4", name: "Nathan Nash", email: "nathan@example.com", initials: "NN", meals: ["Steak", "Chicken", "Stew", "Frozen Plank", "Quinoa Bowl"], totalLogs: 75, avgCalories: 2253, lastMeal: "3 hours ago" },
-  { id: "5", name: "Ava Emman", email: "ava@example.com", initials: "AE", meals: ["Oatmeal Food", "Vegetable Stir Fry", "Smoothie", "Salad"], totalLogs: 72, avgCalories: 1753, lastMeal: "45 min ago" },
-  { id: "6", name: "Han Chen", email: "han@example.com", initials: "HC", meals: ["Baked Salmon", "Brown Rice Bowl", "Eggs", "Chicken Breast"], totalLogs: 68, avgCalories: 1853, lastMeal: "4 hours ago" },
-];
-
-const mealTimeColors = MEAL_TIME_PREFERENCES.map((c) => c.color);
-const MealTimePieCell = (props: React.ComponentProps<typeof Sector> & { index?: number }) => (
-  <Sector {...props} fill={mealTimeColors[props.index ?? 0]} />
-);
-
-const calorieRangeColors = CALORIE_RANGES.map((c) => c.color);
-const CaloriePieCell = (props: React.ComponentProps<typeof Sector> & { index?: number }) => (
-  <Sector {...props} fill={calorieRangeColors[props.index ?? 0]} />
-);
 
 export function AdminMealPlanMonitoring() {
+  const [dateRange, setDateRange] = useState<DateRange>("all");
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState("this-week");
+  const [mealLogs, setMealLogs] = useState<MealLogRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [popularMeals, setPopularMeals] = useState<{ name: string; activeUsers: number; totalLogs: number }[]>([]);
+  const [mealTimePreferences, setMealTimePreferences] = useState<{ name: string; value: number; color?: string }[]>([]);
+  const [weeklyMealLogs, setWeeklyMealLogs] = useState<{ day: string; meals: number }[]>(DEFAULT_WEEKLY_MEALS);
+  const [calorieRanges, setCalorieRanges] = useState<{ name: string; value: number; color?: string }[]>([]);
   const confirm = useAdminConfirm();
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    Promise.all([fetchMealLogs(80, dateRange), fetchMealCharts(dateRange)])
+      .then(([rows, charts]) => {
+        if (cancelled) return;
+        setMealLogs(rows);
+        setPopularMeals(charts.popular || []);
+        setMealTimePreferences(charts.mealTimePreferences?.length ? charts.mealTimePreferences : []);
+        setWeeklyMealLogs(charts.weekly?.length ? charts.weekly : DEFAULT_WEEKLY_MEALS);
+        setCalorieRanges(charts.calorieRanges || []);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [dateRange]);
+
+  const topMealLoggers = useMemo(() => {
+    const byUser = new Map<string, { name: string; count: number }>();
+    for (const row of mealLogs) {
+      const cur = byUser.get(row.user_id);
+      const name = row.user_name ?? "Unknown";
+      if (!cur) byUser.set(row.user_id, { name: name.length > 10 ? name.slice(0, 8) + "…" : name, count: 1 });
+      else cur.count += 1;
+    }
+    return [...byUser.values()].sort((a, b) => b.count - a.count).slice(0, 5).map((u) => ({ name: u.name, mealLogs: u.count }));
+  }, [mealLogs]);
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return USER_MEAL_ROWS;
-    return USER_MEAL_ROWS.filter(
+    if (!q) return mealLogs;
+    return mealLogs.filter(
       (r) =>
-        r.name.toLowerCase().includes(q) ||
-        r.email.toLowerCase().includes(q) ||
-        r.meals.some((m) => m.toLowerCase().includes(q))
+        (r.user_name ?? "").toLowerCase().includes(q) ||
+        (r.category ?? "").toLowerCase().includes(q) ||
+        (r.custom_food_name ?? "").toLowerCase().includes(q)
     );
-  }, [search]);
+  }, [mealLogs, search]);
 
   const handleExport = () => {
     confirm({
@@ -122,22 +115,63 @@ export function AdminMealPlanMonitoring() {
         subtitle="Monitor what users are eating and nutrition actions"
       />
       <div className="p-6">
+        <div className="mb-4 flex flex-wrap items-center justify-end">
+          <DateRangeFilter value={dateRange} onChange={setDateRange} />
+        </div>
         {/* KPI row */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {KPI_CARDS.map(({ title, value, change, icon: Icon, iconBg, iconColor }) => (
-            <div key={title} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-500">{title}</p>
-                  <p className="mt-1 text-2xl font-semibold text-slate-900">{value}</p>
-                  <p className={`mt-1 text-xs font-medium ${title.includes("Calories") ? "text-amber-600" : "text-emerald-600"}`}>{change}</p>
-                </div>
-                <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${iconBg} ${iconColor}`}>
-                  <Icon className="h-5 w-5" />
-                </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500">Total Meal Logs</p>
+                <p className="mt-1 text-2xl font-semibold text-slate-900">{loading ? "…" : mealLogs.length}</p>
+                <p className="mt-1 text-xs font-medium text-emerald-600">From database</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+                <UtensilsCrossed className="h-5 w-5" />
               </div>
             </div>
-          ))}
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500">Active Trackers</p>
+                <p className="mt-1 text-2xl font-semibold text-slate-900">
+                  {loading ? "…" : new Set(mealLogs.map((r) => r.user_id)).size}
+                </p>
+                <p className="mt-1 text-xs font-medium text-emerald-600">Users with meal logs</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                <Users className="h-5 w-5" />
+              </div>
+            </div>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500">Avg. Calories/Log</p>
+                <p className="mt-1 text-2xl font-semibold text-slate-900">
+                  {loading ? "…" : mealLogs.length ? Math.round(mealLogs.reduce((a, r) => a + (r.total_calories ?? 0), 0) / mealLogs.length) : "—"}
+                </p>
+                <p className="mt-1 text-xs font-medium text-amber-600">Per meal log</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                <Flame className="h-5 w-5" />
+              </div>
+            </div>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500">Logging Rate</p>
+                <p className="mt-1 text-2xl font-semibold text-slate-900">{mealLogs.length ? "100%" : "—"}</p>
+                <p className="mt-1 text-xs font-medium text-emerald-600">Logged entries</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Most Popular Meals + Meal Time Preferences */}
@@ -147,7 +181,7 @@ export function AdminMealPlanMonitoring() {
             <p className="mt-0.5 text-sm text-slate-500">What users are eating the most</p>
             <div className="mt-4 h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={POPULAR_MEALS} layout="vertical" margin={{ top: 4, right: 24, left: 4, bottom: 4 }}>
+                <BarChart data={popularMeals.length ? popularMeals : [{ name: "—", activeUsers: 0, totalLogs: 0 }]} layout="vertical" margin={{ top: 4, right: 24, left: 4, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
                   <XAxis type="number" domain={[0, 1400]} tick={{ fontSize: 11, fill: "#64748b" }} />
                   <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11, fill: "#475569" }} />
@@ -170,7 +204,7 @@ export function AdminMealPlanMonitoring() {
             <div className="mt-4 flex items-center gap-6">
               <PieChart style={{ width: "100%", maxWidth: 220, maxHeight: 220, aspectRatio: 1 }} margin={{ top: 12, right: 12, bottom: 12, left: 12 }}>
                 <Pie
-                  data={MEAL_TIME_PREFERENCES}
+                  data={mealTimePreferences.length ? mealTimePreferences : [{ name: "No data", value: 100, color: "#e2e8f0" }]}
                   dataKey="value"
                   nameKey="name"
                   cx="50%"
@@ -178,14 +212,17 @@ export function AdminMealPlanMonitoring() {
                   outerRadius={85}
                   paddingAngle={1}
                   isAnimationActive
-                  shape={MealTimePieCell}
                   label={renderPieLabelInside}
                   labelLine={false}
-                />
+                >
+                  {(mealTimePreferences.length ? mealTimePreferences : [{ name: "No data", value: 100, color: "#e2e8f0" }]).map((entry) => (
+                    <Cell key={entry.name} fill={entry.color ?? "#94a3b8"} />
+                  ))}
+                </Pie>
                 <RechartsDevtools />
               </PieChart>
               <ul className="space-y-1.5">
-                {MEAL_TIME_PREFERENCES.map((c) => (
+                {mealTimePreferences.map((c) => (
                   <li key={c.name} className="flex items-center gap-2 text-sm">
                     <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
                     <span className="text-slate-700">{c.name}</span>
@@ -205,7 +242,7 @@ export function AdminMealPlanMonitoring() {
             <div className="mt-4 h-64 min-h-[240px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
-                  data={WEEKLY_MEAL_LOGS}
+                  data={weeklyMealLogs}
                   margin={{ top: 20, right: 16, left: 0, bottom: 8 }}
                   onContextMenu={(_, e) => e?.preventDefault?.()}
                 >
@@ -226,7 +263,7 @@ export function AdminMealPlanMonitoring() {
             <div className="mt-4 flex items-center gap-6">
               <PieChart style={{ width: "100%", maxWidth: 220, maxHeight: 220, aspectRatio: 1 }} margin={{ top: 12, right: 12, bottom: 12, left: 12 }}>
                 <Pie
-                  data={CALORIE_RANGES}
+                  data={calorieRanges.length ? calorieRanges : [{ name: "No data", value: 100, color: "#e2e8f0" }]}
                   dataKey="value"
                   nameKey="name"
                   cx="50%"
@@ -234,14 +271,17 @@ export function AdminMealPlanMonitoring() {
                   outerRadius={85}
                   paddingAngle={1}
                   isAnimationActive
-                  shape={CaloriePieCell}
                   label={renderPieLabelInside}
                   labelLine={false}
-                />
+                >
+                  {(calorieRanges.length ? calorieRanges : [{ name: "No data", value: 100, color: "#e2e8f0" }]).map((entry) => (
+                    <Cell key={entry.name} fill={entry.color ?? "#94a3b8"} />
+                  ))}
+                </Pie>
                 <RechartsDevtools />
               </PieChart>
               <ul className="space-y-1.5">
-                {CALORIE_RANGES.map((c) => (
+                {calorieRanges.map((c) => (
                   <li key={c.name} className="flex items-center gap-2 text-sm">
                     <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
                     <span className="text-slate-700">{c.name}</span>
@@ -258,7 +298,7 @@ export function AdminMealPlanMonitoring() {
           <h2 className="font-semibold text-slate-900">Top Meal Loggers</h2>
           <p className="mt-0.5 text-sm text-slate-500">Users with most consistent meal tracking this month</p>
           <div className="mt-4 flex flex-wrap gap-3">
-            {TOP_MEAL_LOGGERS.map((u, i) => (
+            {topMealLoggers.map((u, i) => (
               <div
                 key={u.name}
                 className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50/50 px-4 py-3"
@@ -330,43 +370,34 @@ export function AdminMealPlanMonitoring() {
               <thead>
                 <tr className="border-t border-slate-200 bg-slate-50/80">
                   <th className="px-5 py-3 font-medium text-slate-700">User</th>
-                  <th className="px-5 py-3 font-medium text-slate-700">Meals They&apos;re Eating</th>
-                  <th className="px-5 py-3 font-medium text-slate-700">Total Logs</th>
-                  <th className="px-5 py-3 font-medium text-slate-700">Avg Calories</th>
-                  <th className="px-5 py-3 font-medium text-slate-700">Last Meal</th>
+                  <th className="px-5 py-3 font-medium text-slate-700">Category</th>
+                  <th className="px-5 py-3 font-medium text-slate-700">Food</th>
+                  <th className="px-5 py-3 font-medium text-slate-700">Calories</th>
+                  <th className="px-5 py-3 font-medium text-slate-700">Time</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredRows.map((row) => (
-                  <tr key={row.id} className="hover:bg-slate-50/50">
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-700">
-                          {row.initials}
-                        </div>
-                        <div>
-                          <p className="font-medium text-slate-900">{row.name}</p>
-                          <p className="text-slate-500">{row.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3">
-                      <div className="flex flex-wrap gap-1.5">
-                        {row.meals.map((meal) => (
-                          <span
-                            key={meal}
-                            className="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800"
-                          >
-                            {meal}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-5 py-3 text-slate-700">{row.totalLogs}</td>
-                    <td className="px-5 py-3 text-slate-700">{row.avgCalories}</td>
-                    <td className="px-5 py-3 text-slate-600">{row.lastMeal}</td>
-                  </tr>
-                ))}
+                {loading ? (
+                  <tr><td colSpan={5} className="px-5 py-8 text-center text-slate-500">Loading…</td></tr>
+                ) : filteredRows.length === 0 ? (
+                  <tr><td colSpan={5} className="px-5 py-8 text-center text-slate-500">No meal logs found</td></tr>
+                ) : (
+                  filteredRows.map((row) => (
+                    <tr key={row.id} className="hover:bg-slate-50/50">
+                      <td className="px-5 py-3">
+                        <p className="font-medium text-slate-900">{row.user_name ?? "Unknown"}</p>
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                          {row.category || "—"}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 text-slate-700">{row.custom_food_name || "—"}</td>
+                      <td className="px-5 py-3 text-slate-700">{row.total_calories ?? 0}</td>
+                      <td className="px-5 py-3 text-slate-600">{formatMealTime(row.meal_time)}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

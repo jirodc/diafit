@@ -160,17 +160,18 @@ export default function ScheduleScreen() {
       .update({ enabled: newEnabled })
       .eq('id', taskId)
       .eq('user_id', user.id);
-    setSaving(false);
     if (error) {
+      setSaving(false);
       if (__DEV__) console.error('toggle task error:', error);
       return;
     }
+    // Update local state immediately so the task stays visible (with Paused state)
     const updatedTask = { ...task, enabled: newEnabled };
     setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? updatedTask : t))
     );
-    
-    // Update notifications
+
+    // Update notifications (cancel if disabled)
     await scheduleTaskNotifications({
       id: updatedTask.id,
       name: updatedTask.name,
@@ -179,6 +180,9 @@ export default function ScheduleScreen() {
       enabled: updatedTask.enabled,
       taskType: updatedTask.type,
     });
+    // Refetch from server so list is guaranteed to match DB (task remains with enabled: false)
+    await fetchTasks();
+    setSaving(false);
   };
 
   const toggleDay = async (taskId: string, dayIndex: number) => {
@@ -257,7 +261,7 @@ export default function ScheduleScreen() {
     const date = viewDate || new Date();
     const dayIndex = getDayIndexForDate(date);
     return tasks
-      .filter((t) => t.enabled && t.days[dayIndex])
+      .filter((t) => t.days[dayIndex])
       .sort((a, b) => {
         const parse = (s: string) => {
           const m = s.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
@@ -527,7 +531,7 @@ export default function ScheduleScreen() {
               getTasksForSelectedDate().map((task) => (
                 <Pressable
                   key={task.id}
-                  style={styles.taskCard}
+                  style={[styles.taskCard, !task.enabled && styles.taskCardDisabled]}
                   onLongPress={() => handleTaskLongPress(task)}
                   delayLongPress={400}
                 >
@@ -539,6 +543,7 @@ export default function ScheduleScreen() {
                         backgroundColor:
                           task.type === 'meal' ? '#FFF4E6' : '#EFF6FF',
                       },
+                      !task.enabled && styles.iconContainerDisabled,
                     ]}
                   >
                     <MaterialCommunityIcons
@@ -550,7 +555,20 @@ export default function ScheduleScreen() {
 
                   {/* Task info */}
                   <View className="flex-1 ml-4" style={{ minWidth: 0 }}>
-                    <Text className="text-base font-bold text-gray-900" numberOfLines={1}>{task.name}</Text>
+                    <View className="flex-row items-center gap-2" style={{ flexWrap: 'wrap' }}>
+                      <Text
+                        className="text-base font-bold text-gray-900"
+                        numberOfLines={1}
+                        style={!task.enabled ? { opacity: 0.6 } : undefined}
+                      >
+                        {task.name}
+                      </Text>
+                      {!task.enabled && (
+                        <View style={styles.pausedBadge}>
+                          <Text style={styles.pausedBadgeText}>Paused</Text>
+                        </View>
+                      )}
+                    </View>
                     <View className="flex-row items-center mt-1" style={{ flexWrap: 'wrap' }}>
                       <MaterialCommunityIcons name="clock-outline" size={14} color="#6B7280" />
                       <Text className="text-sm text-gray-600 ml-1">{task.time}</Text>
@@ -820,12 +838,29 @@ const styles = StyleSheet.create({
       android: { elevation: 3 },
     }),
   },
+  taskCardDisabled: {
+    opacity: 0.85,
+  },
   iconContainer: {
     width: 48,
     height: 48,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  iconContainerDisabled: {
+    opacity: 0.6,
+  },
+  pausedBadge: {
+    backgroundColor: '#E5E7EB',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  pausedBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#6B7280',
   },
   dayButton: {
     width: 32,

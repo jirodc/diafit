@@ -1,21 +1,11 @@
-<<<<<<< HEAD
-import { View, Text, ScrollView, Pressable, StyleSheet, Platform, ActivityIndicator, Alert } from 'react-native';
-import React, { useState, useEffect, useCallback } from 'react';
-=======
 import { View, Text, ScrollView, Pressable, StyleSheet, Platform, ActivityIndicator } from 'react-native';
-import React, { useState } from 'react';
->>>>>>> layouts/ui
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
-<<<<<<< HEAD
-
-const PROFILE_KEY = '@diafit_profile_complete';
-=======
->>>>>>> layouts/ui
 
 const cardShadow = Platform.select({
   ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
@@ -27,9 +17,9 @@ const PROFILE_KEY = '@diafit_profile_complete';
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-<<<<<<< HEAD
   const [profile, setProfile] = useState<{ full_name: string | null; email: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -47,8 +37,6 @@ export default function ProfileScreen() {
     })();
     return () => { mounted = false; };
   }, [fetchProfile]);
-=======
-  const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = async () => {
     if (loggingOut) return;
@@ -63,7 +51,6 @@ export default function ProfileScreen() {
       setLoggingOut(false);
     }
   };
->>>>>>> layouts/ui
 
   return (
     <View style={styles.screen}>
@@ -168,29 +155,6 @@ export default function ProfileScreen() {
         </View>
 
         <Pressable
-<<<<<<< HEAD
-          style={styles.logoutBtn}
-          onPress={async () => {
-            Alert.alert(
-              'Log Out',
-              'Are you sure you want to log out?',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Log Out',
-                  style: 'destructive',
-                  onPress: async () => {
-                    await supabase.auth.signOut();
-                    await AsyncStorage.removeItem(PROFILE_KEY);
-                    router.replace('/(auth)/welcome');
-                  },
-                },
-              ]
-            );
-          }}
-        >
-          <Text style={styles.logoutText}>→ Log Out</Text>
-=======
           style={[styles.logoutBtn, loggingOut && styles.logoutBtnDisabled]}
           onPress={handleLogout}
           disabled={loggingOut}
@@ -200,7 +164,6 @@ export default function ProfileScreen() {
           ) : (
             <Text style={styles.logoutText}>→ Log Out</Text>
           )}
->>>>>>> layouts/ui
         </Pressable>
 
         <Text style={styles.footer}>Diafit v1.0.0</Text>
