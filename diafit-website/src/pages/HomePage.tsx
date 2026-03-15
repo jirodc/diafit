@@ -1,42 +1,75 @@
 import { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { GetStartedButton } from "@/components/GetStartedButton";
-import SpotlightCard from "@/components/SpotlightCard";
-import { FeaturesCarousel } from "@/components/FeaturesCarousel";
 import { motion } from "motion/react";
-import { CheckCircle2 } from "lucide-react";
-import GridMotion from "@/components/GridMotion";
+import {
+  Activity,
+  UtensilsCrossed,
+  Lightbulb,
+  FileBarChart,
+  Bell,
+  Users,
+  ClipboardList,
+  TrendingUp,
+  Heart,
+} from "lucide-react";
 
-/** 28 diabetes / health / wellness images for hero grid background */
-const HERO_GRID_IMAGES = [
-  "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&q=80",
-  "https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&q=80",
-  "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=400&q=80",
-  "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=400&q=80",
-  "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&q=80",
-  "https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=400&q=80",
-  "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80",
-  "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400&q=80",
-  "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&q=80",
-  "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&q=80",
-  "https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=400&q=80",
-  "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&q=80",
-  "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&q=80",
-  "https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?w=400&q=80",
-  "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&q=80",
-  "https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&q=80",
-  "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=400&q=80",
-  "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=400&q=80",
-  "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&q=80",
-  "https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=400&q=80",
-  "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80",
-  "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400&q=80",
-  "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&q=80",
-  "https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=400&q=80",
-  "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&q=80",
-  "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&q=80",
-  "https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?w=400&q=80",
-  "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&q=80",
+import GlucoHeroImg from "@/GlucoHero.png";
+
+const SKY_BLUE = "#B7D6FB";
+
+const FEATURE_CARDS = [
+  {
+    icon: Activity,
+    title: "Glucose Tracking",
+    description: "Log readings in seconds and see trends at a glance. Stay on top of your numbers with clear charts and history.",
+  },
+  {
+    icon: UtensilsCrossed,
+    title: "Meal Plans",
+    description: "Personalized meal suggestions based on your preferences and glucose goals. Eat well without the guesswork.",
+  },
+  {
+    icon: Lightbulb,
+    title: "AI Insights",
+    description: "Smart recommendations that learn from your data. Get actionable tips to improve your glucose control.",
+  },
+  {
+    icon: FileBarChart,
+    title: "Smart Reports",
+    description: "Understand your patterns with easy-to-read reports. Share with your care team when it matters.",
+  },
+  {
+    icon: Bell,
+    title: "Reminders",
+    description: "Never miss a reading or medication. Custom reminders keep your routine on track.",
+  },
+  {
+    icon: Users,
+    title: "Community",
+    description: "Connect with others who understand. Support and motivation when you need it most.",
+  },
+];
+
+const HOW_IT_WORKS = [
+  {
+    step: 1,
+    title: "Track Your Data",
+    description: "Log glucose readings, meals, medications, and activities in seconds from your phone or device.",
+    image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&q=80",
+  },
+  {
+    step: 2,
+    title: "Get AI Insights",
+    description: "Our AI analyzes your data and surfaces personalized recommendations and trends.",
+    image: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=600&q=80",
+  },
+  {
+    step: 3,
+    title: "Improve Your Health",
+    description: "Follow your plan and watch your metrics improve. Small steps add up to lasting change.",
+    image: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=600&q=80",
+  },
 ];
 
 export default function HomePage() {
@@ -49,282 +82,166 @@ export default function HomePage() {
   }, [location.hash]);
 
   return (
-    <div className="min-h-screen bg-[#B7D6FB]">
-      {/* Hero – GridMotion background + content */}
-      <section className="relative flex min-h-screen min-w-full flex-col justify-center overflow-hidden border-2 border-dashed border-slate-500/60 px-4 py-24 shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_4px_20px_rgba(0,0,0,0.08)] sm:px-6 sm:py-28 lg:flex-row lg:items-center lg:gap-12 lg:px-8">
-        {/* Parallax grid background (diabetes/health images) */}
-        <div className="absolute inset-0 z-0">
-          <GridMotion
-            items={HERO_GRID_IMAGES}
-            gradientColor="rgba(183, 214, 251, 0.92)"
-          />
-        </div>
-        <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col gap-10 lg:flex-row lg:items-center lg:gap-16">
-          {/* Left: copy + CTAs + social proof */}
+    <div className="min-h-screen bg-white">
+      {/* Hero – template 1: sky blue, two columns, headline + CTAs + media */}
+      <section
+        className="relative flex min-h-screen min-w-full flex-col justify-center overflow-hidden px-4 pt-24 pb-16 sm:px-6 sm:pt-28 sm:pb-20 lg:flex-row lg:items-center lg:gap-12 lg:px-8"
+        style={{ backgroundColor: SKY_BLUE }}
+      >
+        <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-10 lg:flex-row lg:items-center lg:gap-16">
           <div className="flex max-w-xl flex-col">
-          
-            <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
-              Manage diabetes with{" "}
-              <span className="text-blue-700">AI-Powered</span> insights
+            <h1 className="text-4xl font-bold leading-tight tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
+              Manage Diabete with AI-Powered Insights
             </h1>
             <p className="mt-6 text-lg leading-relaxed text-slate-800">
-              Track glucose with confidence. Get personalized meal plans and smart health recommendations—all in one place.
+              Our app works on all devices, so you only have to set it up once—and get better health results every day.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <GetStartedButton />
               <Link
                 to="/#services"
-                className="inline-flex items-center gap-2 rounded-lg border-2 border-slate-800 bg-transparent px-6 py-3 text-base font-medium text-slate-800 transition-colors hover:bg-white/40"
+                className="inline-flex items-center gap-2 rounded-lg border-2 border-slate-700 bg-transparent px-6 py-3 text-base font-medium text-slate-800 transition-colors hover:bg-white/40"
               >
-                Learn More
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                </svg>
+                Explore Product
               </Link>
             </div>
-            
           </div>
-
-          {/* Right: glucose meter image – anchored to bottom of hero, high quality */}
-          <div className="relative hidden min-h-[280px] w-full max-w-md flex-1 lg:flex lg:min-h-0 lg:items-end lg:justify-center lg:self-stretch">
-            <div
-              className="relative flex h-full max-h-[85vh] w-full max-w-[320px] flex-shrink-0 items-end lg:max-w-[380px]"
-              style={{
-                filter: "drop-shadow(0 25px 50px rgba(0,0,0,0.2)) drop-shadow(0 12px 24px rgba(0,0,0,0.12))",
-              }}
-            >
-              <img
-                src="/monitoring-kit-hero.png"
-                alt="Blood glucose monitor showing 95 MG/DL – track your readings with Diafit"
-                className="h-full w-full object-contain object-bottom"
-                width={760}
-                height={860}
-                fetchPriority="high"
-                decoding="async"
-              />
-            </div>
+          <div className="relative flex min-h-[280px] w-full max-w-md flex-1 items-end justify-center lg:min-h-0 lg:self-stretch">
+            <img
+              src={GlucoHeroImg}
+              alt="Blood glucose meter showing 95 – track your readings with Diafit"
+              className="h-auto max-h-[85vh] w-[280px] object-contain object-bottom drop-shadow-2xl sm:w-[320px] lg:w-[380px]"
+            />
           </div>
         </div>
       </section>
 
-      {/* Features / Services – Bento grid (image kept) */}
-      <section id="services" className="border-2 border-dashed border-slate-500/60 bg-[#B7D6FB] py-20 shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_4px_20px_rgba(0,0,0,0.08)] sm:py-24">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
+      {/* Features – template 2: white section, 2x3 grid, sky blue circular icons */}
+      <section id="services" className="relative bg-white py-20 sm:py-24">
+        {/* Curved transition from sky blue */}
+        <div
+          className="absolute inset-x-0 top-0 h-24 w-full"
+          style={{
+            background: `linear-gradient(to bottom, ${SKY_BLUE}, white)`,
+            clipPath: "ellipse(120% 100% at 50% 0%)",
+          }}
+        />
+        <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="mt-4 text-center">
             <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-              Everything You Need to Stay Healthy
+              Everything you need to stay healthy
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-700">
-              Powerful features designed to help you manage diabetes effectively
+            <p className="mx-auto mt-4 max-w-2xl text-slate-600">
+              Powerful features designed to help you manage diabetes effectively.
             </p>
           </div>
-
-          {/* Bento grid */}
-          <motion.div
-            className="mt-10 grid gap-4 sm:gap-5 sm:grid-cols-2 lg:grid-cols-3"
-            initial="hidden"
-            variants={{
-              hidden: { opacity: 0 },
-              visible: {
-                opacity: 1,
-                transition: { staggerChildren: 0.1, delayChildren: 0.15 },
-              },
-            }}
-            viewport={{ once: true, margin: "-40px" }}
-            whileInView="visible"
-          >
-            {/* Large image cell – keep existing wellness image */}
-            <motion.div
-              className="relative overflow-hidden rounded-2xl border border-slate-300/80 bg-white/95 shadow-lg sm:col-span-2 sm:row-span-2"
-              variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }}
-            >
-              <img
-                src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&q=80"
-                alt="Stay healthy - diabetes management and wellness"
-                className="h-full min-h-[240px] w-full object-cover sm:min-h-[280px]"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 to-transparent" />
-              <p className="absolute bottom-4 left-4 right-4 text-sm font-medium text-white drop-shadow sm:text-base">
-                Your health, your way — track, learn, and thrive with Diafit.
-              </p>
-            </motion.div>
-
-            {/* Spotlight features cell */}
-            <motion.div
-              className="flex flex-col justify-center rounded-2xl border border-slate-300/80 bg-white/95 p-5 shadow-lg"
-              variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }}
-            >
-              <h3 className="font-semibold text-slate-900 text-lg">What we offer</h3>
-              <ul className="mt-3 space-y-2">
-                {[
-                  "Glucose tracking & insights",
-                  "Personalized meal plans",
-                  "AI health recommendations",
-                  "Smart analytics",
-                ].map((item) => (
-                  <li key={item} className="flex items-center gap-2 text-slate-700 text-sm">
-                    <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-emerald-600" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
-
-            {/* Small text cell */}
-            <motion.div
-              className="rounded-2xl border border-slate-300/80 bg-white/95 p-5 shadow-lg"
-              variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }}
-            >
-              <h3 className="font-semibold text-slate-900">Stay on track</h3>
-              <p className="mt-2 text-slate-600 text-sm leading-relaxed">
-                Log readings, follow meal plans, and get insights—all in one place.
-              </p>
-            </motion.div>
-          </motion.div>
-
-          <div className="mt-12 w-full">
-            <FeaturesCarousel variant="light" />
+          <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURE_CARDS.map((card, i) => (
+              <motion.div
+                key={card.title}
+                className="flex flex-col items-center rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-sm transition-shadow hover:shadow-md"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.05 }}
+              >
+                <div
+                  className="flex h-14 w-14 items-center justify-center rounded-full text-white"
+                  style={{ backgroundColor: SKY_BLUE }}
+                >
+                  <card.icon className="h-7 w-7 text-slate-800" strokeWidth={1.8} />
+                </div>
+                <h3 className="mt-5 text-lg font-bold text-slate-900">{card.title}</h3>
+                <p className="mt-2 text-slate-600 text-sm leading-relaxed">{card.description}</p>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Lifestyle / imagery section */}
-      <section className="border-2 border-dashed border-slate-500/60 bg-[#B7D6FB] py-16 shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_4px_20px_rgba(0,0,0,0.08)] sm:py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <h2 className="text-center text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-            Live healthier, one day at a time
+      {/* Built exclusively for you – template 3 */}
+      <section className="py-20 sm:py-24" style={{ backgroundColor: SKY_BLUE }}>
+        <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+            Built exclusively for you
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-slate-700">
-            Join a community that understands. Track, learn, and thrive with Diafit.
+          <p className="mt-6 text-lg leading-relaxed text-slate-800">
+            Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est
+            laborum—semper quis lectus nulla at volutpat diam ut venenatis.
           </p>
-          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="screen-3d-card relative">
-              <div className="screen-3d-card-inner relative aspect-[4/3] w-full">
-                <img
-                  src="https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=600&q=80"
-                  alt="Healthy balanced meal"
-                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                <span className="absolute bottom-4 left-4 z-10 text-sm font-medium text-white drop-shadow">
-                  Personalized meal plans
-                </span>
+          <div className="mt-10 flex flex-wrap justify-center gap-8">
+            {[ClipboardList, TrendingUp, Heart, Lightbulb].map((Icon, i) => (
+              <div key={i} className="flex flex-col items-center gap-2">
+                <div
+                  className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-slate-700/30 bg-white/80"
+                >
+                  <Icon className="h-6 w-6 text-slate-700" strokeWidth={1.5} />
+                </div>
+                <span className="text-sm font-medium text-slate-800">Internal Feedback</span>
               </div>
-            </div>
-            <div className="screen-3d-card relative">
-              <div className="screen-3d-card-inner relative aspect-[4/3] w-full">
-                <img
-                  src="https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=600&q=80"
-                  alt="Glucose monitoring"
-                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                <span className="absolute bottom-4 left-4 z-10 text-sm font-medium text-white drop-shadow">
-                  Smart glucose tracking
-                </span>
-              </div>
-            </div>
-            <div className="screen-3d-card relative sm:col-span-2 lg:col-span-1">
-              <div className="screen-3d-card-inner relative aspect-[4/3] w-full">
-                <img
-                  src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&q=80"
-                  alt="Active lifestyle"
-                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                <span className="absolute bottom-4 left-4 z-10 text-sm font-medium text-white drop-shadow">
-                  Your health, your way
-                </span>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* How it works */}
-      <section
-        id="how-it-works"
-        className="border-2 border-dashed border-slate-500/60 bg-[#B7D6FB] py-20 shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_4px_20px_rgba(0,0,0,0.08)] sm:py-24"
-      >
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-              How Diafit Works
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-700">
-              Simple steps to better health management
-            </p>
-          </div>
-          <div className="mt-16 grid gap-8 md:grid-cols-3">
-            <SpotlightCard className="custom-spotlight-card border border-slate-300 bg-white/80" spotlightColor="rgba(124, 58, 237, 0.2)">
-              <span className="text-5xl font-bold text-slate-500">01</span>
-              <h3 className="mt-4 text-xl font-semibold text-slate-900">
-                Track Your Data
-              </h3>
-              <p className="mt-2 text-slate-700">
-                Log glucose readings, meals, medications, and activities in
-                seconds.
-              </p>
-              <div className="mt-6 flex items-center gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-sm font-medium text-white">
-                  ✓
-                </span>
-              </div>
-            </SpotlightCard>
-            <SpotlightCard className="custom-spotlight-card border border-slate-300 bg-white/80" spotlightColor="rgba(124, 58, 237, 0.2)">
-              <span className="text-5xl font-bold text-slate-500">02</span>
-              <h3 className="mt-4 text-xl font-semibold text-slate-900">
-                Get AI Insights
-              </h3>
-              <p className="mt-2 text-slate-700">
-                Our AI analyzes your data and provides personalized
-                recommendations.
-              </p>
-              <div className="mt-6 flex items-center gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-sm font-medium text-white">
-                  ✓
-                </span>
-              </div>
-            </SpotlightCard>
-            <SpotlightCard className="custom-spotlight-card border border-slate-300 bg-white/80" spotlightColor="rgba(124, 58, 237, 0.2)">
-              <span className="text-5xl font-bold text-slate-500">03</span>
-              <h3 className="mt-4 text-xl font-semibold text-slate-900">
-                Improve Your Health
-              </h3>
-              <p className="mt-2 text-slate-700">
-                Follow insights and watch your health metrics improve over time.
-              </p>
-              <div className="mt-6 flex items-center gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-sm font-medium text-white">
-                  ✓
-                </span>
-              </div>
-            </SpotlightCard>
+      {/* How it works – template 5: sky blue band + 3 numbered cards */}
+      <section id="how-it-works" className="bg-white py-0">
+        <div
+          className="py-16 text-center sm:py-20"
+          style={{ backgroundColor: SKY_BLUE }}
+        >
+          <h2 className="mx-auto max-w-3xl px-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+            Simplify managing diabetes with transparency
+          </h2>
+        </div>
+        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
+          <div className="grid gap-10 md:grid-cols-3">
+            {HOW_IT_WORKS.map((item) => (
+              <motion.div
+                key={item.step}
+                className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg"
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+              >
+                <div
+                  className="absolute left-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold text-white shadow"
+                  style={{ backgroundColor: SKY_BLUE }}
+                >
+                  {item.step}
+                </div>
+                <div className="aspect-[4/3] overflow-hidden">
+                  <img
+                    src={item.image}
+                    alt=""
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                </div>
+                <div className="p-6">
+                  <h3 className="text-xl font-bold text-slate-900">{item.title}</h3>
+                  <p className="mt-2 text-slate-600 text-sm leading-relaxed">{item.description}</p>
+                </div>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Download Our App – MyFridgeFood-style: white block, headline, buttons, phone + floating cards */}
-      <section id="download" className="bg-[#B7D6FB] py-16 sm:py-20">
+      {/* Download Our App – keep template style, sky blue accents */}
+      <section id="download" className="py-16 sm:py-20" style={{ backgroundColor: SKY_BLUE }}>
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
           <div className="relative overflow-hidden rounded-3xl bg-white shadow-xl">
-            {/* Subtle health background in lower area */}
             <div
               className="absolute inset-x-0 bottom-0 h-1/2 rounded-3xl bg-cover bg-center opacity-30"
               style={{
-                backgroundImage:
-                  "url(https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=1200&q=80)",
+                backgroundImage: "url(https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=1200&q=80)",
               }}
             />
             <div className="absolute inset-0 rounded-3xl bg-gradient-to-t from-white/95 via-white/80 to-transparent" />
-
             <div className="relative px-6 pb-12 pt-10 sm:px-8 sm:pt-12 sm:pb-16">
-              {/* Centered headline */}
               <h2 className="text-center text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
                 Your health at your fingertips
               </h2>
-
-              {/* App Store buttons – centered, black, rounded */}
               <div className="mt-6 flex flex-wrap justify-center gap-4">
                 <a
                   href="#"
@@ -358,46 +275,31 @@ export default function HomePage() {
                   </div>
                 </a>
               </div>
-
-              {/* Phone + floating cards container */}
-              <div className="relative mt-12 flex min-h-[320px] flex-col items-center sm:min-h-[380px] lg:min-h-[420px]">
-                {/* Left floating card */}
-                <div className="absolute left-0 top-1/2 z-10 hidden w-[260px] -translate-y-1/2 rounded-2xl border border-slate-100 bg-white p-4 shadow-lg sm:left-2 sm:block sm:w-[280px] sm:p-5 lg:left-4 lg:top-1/3 lg:translate-y-0">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#B7D6FB] text-slate-700">
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
+              <div className="relative mt-12 flex min-h-[280px] flex-col items-center sm:min-h-[340px]">
+                <div className="absolute left-0 top-1/2 z-10 hidden w-[260px] -translate-y-1/2 rounded-2xl border border-slate-100 bg-white p-4 shadow-lg sm:left-2 sm:block sm:w-[280px] sm:p-5 lg:left-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-700" style={{ backgroundColor: SKY_BLUE }}>
+                    <Activity className="h-5 w-5" strokeWidth={2} />
                   </div>
                   <h3 className="mt-3 font-bold text-slate-900">Track readings easily</h3>
                   <p className="mt-1.5 text-slate-600 text-sm leading-relaxed">
-                    Log glucose, meals, and activity in one place. See trends and stay on top of your numbers with clear charts and reminders.
+                    Log glucose, meals, and activity in one place. See trends with clear charts.
                   </p>
                 </div>
-
-                {/* Center: tilted phone mockup */}
-                <div className="relative z-20 flex justify-center">
-                  <img
-                    src="/diafit-app-phone.png"
-                    alt="Diafit app on phone"
-                    className="h-auto w-[180px] -rotate-6 drop-shadow-2xl sm:w-[220px] lg:w-[260px]"
-                  />
-                </div>
-
-                {/* Right floating card */}
-                <div className="absolute right-0 top-1/2 z-10 hidden w-[260px] -translate-y-1/2 rounded-2xl border border-slate-100 bg-white p-4 shadow-lg sm:right-2 sm:block sm:w-[280px] sm:p-5 lg:right-4 lg:top-1/3 lg:translate-y-0">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#B7D6FB] text-slate-700">
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
+                <img
+                  src="/diafit-app-phone.png"
+                  alt="Diafit app on phone"
+                  className="relative z-20 h-auto w-[180px] -rotate-6 drop-shadow-2xl sm:w-[220px] lg:w-[260px]"
+                />
+                <div className="absolute right-0 top-1/2 z-10 hidden w-[260px] -translate-y-1/2 rounded-2xl border border-slate-100 bg-white p-4 shadow-lg sm:right-2 sm:block sm:w-[280px] sm:p-5 lg:right-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-700" style={{ backgroundColor: SKY_BLUE }}>
+                    <Lightbulb className="h-5 w-5" strokeWidth={2} />
                   </div>
                   <h3 className="mt-3 font-bold text-slate-900">Personalized health insights</h3>
                   <p className="mt-1.5 text-slate-600 text-sm leading-relaxed">
-                    AI-powered meal plans and recommendations tailored to your data. Get actionable tips to improve your glucose control.
+                    AI-powered meal plans and recommendations tailored to your data.
                   </p>
                 </div>
               </div>
-
-              {/* QR code – subtle, centered below phone on small screens */}
               <div className="mt-8 flex flex-col items-center gap-2">
                 <div className="flex h-20 w-20 items-center justify-center rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
                   <img
@@ -413,14 +315,16 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="border-2 border-dashed border-slate-500/60 bg-[#B7D6FB] py-16 shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_4px_20px_rgba(0,0,0,0.08)] sm:py-20">
-        <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
+      {/* CTA – template 7: centered headline with accent word */}
+      <section className="py-16 sm:py-20" style={{ backgroundColor: SKY_BLUE }}>
+        <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-slate-900 sm:text-4xl">
-            Ready to Take Control of Your Health?
+            Say goodbye to guesswork and{" "}
+            <span className="text-emerald-600">confusion.</span>
           </h2>
-          <p className="mt-4 text-lg text-slate-700">
-            Join thousands of users managing their diabetes with Diafit
+          <p className="mt-6 text-lg leading-relaxed text-slate-800">
+            Diafit puts your glucose, meals, and insights in one place—so you see the full picture and make
+            confident choices. Join thousands taking control of their diabetes with clarity and support.
           </p>
           <div className="mt-10">
             <GetStartedButton variant="secondary" />

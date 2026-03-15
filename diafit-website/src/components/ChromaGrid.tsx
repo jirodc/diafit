@@ -185,8 +185,19 @@ const ChromaGrid: React.FC<ChromaGridProps> = ({
                 'radial-gradient(circle at var(--mouse-x) var(--mouse-y), var(--spotlight-color), transparent 70%)'
             }}
           />
-          <div className="relative z-10 flex-1 p-[10px] box-border">
-            <img src={c.image} alt={c.title} loading="lazy" className="w-full h-full object-cover rounded-[10px]" />
+          <div className="relative z-10 min-h-[200px] flex-1 p-[10px] box-border">
+            <img
+              src={c.image}
+              alt={c.title}
+              loading="lazy"
+              className="h-full w-full rounded-[10px] object-cover bg-slate-200"
+              onError={(e) => {
+                const el = e.target as HTMLImageElement;
+                el.onerror = null;
+                el.src = '';
+                el.style.background = '#e2e8f0';
+              }}
+            />
           </div>
           <footer
             className={`relative z-10 p-3 font-sans grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 ${

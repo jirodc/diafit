@@ -3,22 +3,42 @@
 import { createContext, useCallback, useContext, useState } from "react";
 import { LoginModal } from "@/components/LoginModal";
 
+export type LoginModalMode = "login" | "signup";
+
 interface LoginModalContextValue {
-  openLoginModal: () => void;
+  openLoginModal: (options?: { mode?: LoginModalMode }) => void;
   closeLoginModal: () => void;
 }
 
 const LoginModalContext = createContext<LoginModalContextValue | null>(null);
 
-export function LoginModalProvider({ children }: { children: React.ReactNode }) {
+export function LoginModalProvider({
+  children,
+  bypass,
+}: {
+  children: React.ReactNode;
+  /** When true (e.g. on admin routes), login modal is not rendered and open is a no-op. */
+  bypass?: boolean;
+}) {
   const [isOpen, setIsOpen] = useState(false);
-  const openLoginModal = useCallback(() => setIsOpen(true), []);
+  const [initialMode, setInitialMode] = useState<LoginModalMode>("login");
+  const openLoginModal = useCallback(
+    (options?: { mode?: LoginModalMode }) => {
+      if (!bypass) {
+        setInitialMode(options?.mode ?? "login");
+        setIsOpen(true);
+      }
+    },
+    [bypass]
+  );
   const closeLoginModal = useCallback(() => setIsOpen(false), []);
 
   return (
     <LoginModalContext.Provider value={{ openLoginModal, closeLoginModal }}>
       {children}
-      <LoginModal isOpen={isOpen} onClose={closeLoginModal} />
+      {!bypass && (
+        <LoginModal isOpen={isOpen} onClose={closeLoginModal} initialMode={initialMode} />
+      )}
     </LoginModalContext.Provider>
   );
 }

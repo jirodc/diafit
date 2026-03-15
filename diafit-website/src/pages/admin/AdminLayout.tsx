@@ -1,0 +1,148 @@
+import { useState, useRef } from "react";
+import { NavLink, Outlet } from "react-router-dom";
+import { Logo } from "@/components/Logo";
+import { AdminModalProvider } from "@/contexts/AdminModalContext";
+import { AdminNotificationsPanel } from "@/components/admin/AdminNotificationsPanel";
+import { useAdminAuth } from "@/contexts/AdminAuthContext";
+import { AdminLoginView } from "@/pages/admin/AdminLoginView";
+import {
+  LayoutDashboard,
+  Users,
+  BarChart3,
+  Dumbbell,
+  UtensilsCrossed,
+  Pill,
+  History,
+  Bell,
+  Calendar,
+  LogOut,
+  UserCircle,
+} from "lucide-react";
+
+const NAV_ITEMS = [
+  { to: "/admin", end: true, label: "Dashboard", icon: LayoutDashboard },
+  { to: "/admin/users", end: false, label: "User Management", icon: Users },
+  { to: "/admin/analytics", end: false, label: "Analytics", icon: BarChart3 },
+  { to: "/admin/exercises", end: false, label: "Exercise", icon: Dumbbell },
+  { to: "/admin/meal-plans", end: false, label: "Meal Plans", icon: UtensilsCrossed },
+  { to: "/admin/medications", end: false, label: "Medications", icon: Pill },
+  { to: "/admin/history-logs", end: false, label: "History Logs", icon: History },
+] as const;
+
+export function AdminLayout() {
+  const { isAuthenticated, logout } = useAdminAuth();
+
+  if (!isAuthenticated) {
+    return <AdminLoginView />;
+  }
+
+  return (
+    <div className="flex min-h-screen bg-slate-50">
+      {/* Sidebar */}
+      <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-slate-200 bg-white shadow-sm overflow-y-auto">
+        <div className="flex h-16 items-center gap-2 border-b border-slate-200 px-5">
+          <Logo variant="light" className="scale-90" />
+          <span className="text-sm font-medium text-slate-600">Admin Panel</span>
+        </div>
+        <nav className="flex-1 space-y-0.5 p-3">
+          {NAV_ITEMS.map(({ to, end, label, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              className={({ isActive }) =>
+                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                  isActive
+                    ? "bg-[var(--diafit-blue-muted)] text-[var(--diafit-blue)]"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                }`
+              }
+            >
+              <Icon className="h-5 w-5 shrink-0" />
+              {label}
+            </NavLink>
+          ))}
+        </nav>
+        <div className="border-t border-slate-200 p-3">
+          <div className="flex items-center gap-3 rounded-lg px-3 py-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-700">
+              AD
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-slate-900">Admin User</p>
+              <p className="truncate text-xs text-slate-500">admin@diafit.com</p>
+            </div>
+            <button
+              type="button"
+              onClick={logout}
+              className="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              aria-label="Log out"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main content */}
+      <main className="flex-1 overflow-auto">
+        <AdminModalProvider>
+          <Outlet />
+        </AdminModalProvider>
+      </main>
+    </div>
+  );
+}
+
+export function AdminHeader({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle?: string;
+}) {
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const bellRef = useRef<HTMLButtonElement>(null);
+
+  return (
+    <header className="flex items-start justify-between border-b border-slate-200 bg-white px-6 py-5">
+      <div>
+        <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
+        {subtitle && <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>}
+      </div>
+      <div className="relative flex items-center gap-2">
+        <button
+          type="button"
+          className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
+          aria-label="Admin user"
+        >
+          <UserCircle className="h-5 w-5 text-slate-500" />
+          Admin User
+        </button>
+        <button
+          ref={bellRef}
+          type="button"
+          onClick={() => setNotificationsOpen((o) => !o)}
+          className="relative rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+          aria-label="Notifications"
+          aria-expanded={notificationsOpen}
+        >
+          <Bell className="h-5 w-5" />
+          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
+        </button>
+        <AdminNotificationsPanel
+          isOpen={notificationsOpen}
+          onClose={() => setNotificationsOpen(false)}
+          anchorRef={bellRef}
+        />
+        <button
+          type="button"
+          className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+          aria-label="Calendar"
+        >
+          <Calendar className="h-5 w-5" />
+        </button>
+      </div>
+    </header>
+  );
+}
