@@ -51,7 +51,7 @@ export function AdminExerciseMonitoring() {
   const [popularExercises, setPopularExercises] = useState<{ name: string; activeUsers: number; completedSessions: number }[]>([]);
   const [weeklyTrend, setWeeklyTrend] = useState<{ day: string; sessions: number }[]>(DEFAULT_WEEKLY);
   const [categoryPreferences, setCategoryPreferences] = useState<{ name: string; value: number; color: string }[]>([]);
-  const confirm = useAdminConfirm();
+  const { confirm } = useAdminConfirm();
 
   useEffect(() => {
     let cancelled = false;
@@ -224,7 +224,7 @@ export function AdminExerciseMonitoring() {
                   label={renderPieLabelInside}
                   labelLine={false}
                 >
-                  {categoryPreferences.map((entry, i) => (
+                  {categoryPreferences.map((entry) => (
                     <Cell key={entry.name} fill={entry.color} />
                   ))}
                 </Pie>

@@ -566,7 +566,6 @@ export async function fetchMealCharts(range?: DateRange): Promise<{
   const byDay: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
   const calorieBuckets = { "<500": 0, "500-750": 0, "750-1000": 0, ">1000": 0 };
   for (const row of filtered) {
-    const logDate = new Date(row.meal_time);
     const name = (row.custom_food_name?.trim() || row.category || "Meal").slice(0, 30);
     if (!byName.has(name)) byName.set(name, { users: new Set(), total: 0 });
     byName.get(name)!.users.add(row.user_id);

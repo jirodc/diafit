@@ -24,20 +24,10 @@ import { DateRangeFilter } from "@/components/admin/DateRangeFilter";
 import {
   Search,
   Download,
-  Shield,
-  UserPlus,
   Clock,
   Activity,
   FileText,
-  FlaskConical,
-  Pill,
-  UtensilsCrossed,
-  Dumbbell,
-  Heart,
-  Calendar,
-  Info,
   CheckCircle,
-  type LucideIcon,
 } from "lucide-react";
 
 export type LogType = "admin" | "new_user";
@@ -69,20 +59,6 @@ export interface HistoryLogEntry {
   status: LogStatus;
 }
 
-const ACTIVITY_ICONS: Record<ActivityType, { icon: LucideIcon; bg: string; color: string }> = {
-  consultation: { icon: FileText, bg: "bg-slate-100", color: "text-slate-600" },
-  lab: { icon: FlaskConical, bg: "bg-blue-100", color: "text-blue-600" },
-  glucose: { icon: Activity, bg: "bg-violet-100", color: "text-violet-600" },
-  medication: { icon: Pill, bg: "bg-violet-100", color: "text-violet-600" },
-  meal: { icon: UtensilsCrossed, bg: "bg-amber-100", color: "text-amber-600" },
-  exercise: { icon: Dumbbell, bg: "bg-emerald-100", color: "text-emerald-600" },
-  vitals: { icon: Heart, bg: "bg-red-100", color: "text-red-600" },
-  appointment: { icon: Calendar, bg: "bg-blue-100", color: "text-blue-600" },
-  cgm: { icon: Activity, bg: "bg-violet-100", color: "text-violet-600" },
-  admin: { icon: Shield, bg: "bg-violet-100", color: "text-violet-600" },
-  signup: { icon: UserPlus, bg: "bg-emerald-100", color: "text-emerald-600" },
-};
-
 const DEFAULT_BY_DAY = [
   { day: "Sun", completed: 0, skipped: 0 },
   { day: "Mon", completed: 0, skipped: 0 },
@@ -92,19 +68,6 @@ const DEFAULT_BY_DAY = [
   { day: "Fri", completed: 0, skipped: 0 },
   { day: "Sat", completed: 0, skipped: 0 },
 ];
-
-function formatLogTime(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-  if (diffMins < 60) return `${diffMins} min ago`;
-  if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`;
-  if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? "s" : ""} ago`;
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
-}
 
 function formatLogTimestamp(iso: string): string {
   const d = new Date(iso);
@@ -127,7 +90,7 @@ export function AdminHistoryLogs() {
   const [logsByDay, setLogsByDay] = useState<{ day: string; completed: number; skipped: number }[]>(DEFAULT_BY_DAY);
   const [logsByType, setLogsByType] = useState<{ name: string; value: number; color: string }[]>([]);
   const [topActions, setTopActions] = useState<{ action: string; count: number }[]>([]);
-  const confirm = useAdminConfirm();
+  const { confirm } = useAdminConfirm();
 
   useEffect(() => {
     let cancelled = false;

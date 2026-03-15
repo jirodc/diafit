@@ -57,7 +57,7 @@ export function AdminMealPlanMonitoring() {
   const [mealTimePreferences, setMealTimePreferences] = useState<{ name: string; value: number; color?: string }[]>([]);
   const [weeklyMealLogs, setWeeklyMealLogs] = useState<{ day: string; meals: number }[]>(DEFAULT_WEEKLY_MEALS);
   const [calorieRanges, setCalorieRanges] = useState<{ name: string; value: number; color?: string }[]>([]);
-  const confirm = useAdminConfirm();
+  const { confirm } = useAdminConfirm();
 
   useEffect(() => {
     let cancelled = false;

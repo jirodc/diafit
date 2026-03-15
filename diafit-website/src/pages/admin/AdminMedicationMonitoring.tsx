@@ -36,7 +36,7 @@ export function AdminMedicationMonitoring() {
   const [weeklyAdherence, setWeeklyAdherence] = useState<{ day: string; taken: number; missed: number }[]>([]);
   const [preferredTimes, setPreferredTimes] = useState<{ name: string; value: number; color?: string }[]>([]);
   const [topAdherentUsers, setTopAdherentUsers] = useState<{ name: string; adherence: number; dosesLogged: number }[]>([]);
-  const confirm = useAdminConfirm();
+  const { confirm } = useAdminConfirm();
 
   useEffect(() => {
     let cancelled = false;

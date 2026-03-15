@@ -116,7 +116,7 @@ function EditUserModal({
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const confirm = useAdminConfirm();
+  const { confirm } = useAdminConfirm();
 
   useEffect(() => {
     if (user) {
@@ -238,7 +238,7 @@ export function AdminUserManagement() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [detailsUser, setDetailsUser] = useState<AdminUser | null>(null);
   const [editUser, setEditUser] = useState<AdminUser | null>(null);
-  const confirm = useAdminConfirm();
+  const { confirm } = useAdminConfirm();
 
   useEffect(() => {
     let cancelled = false;

@@ -8,7 +8,6 @@ import LoginPage from "@/pages/LoginPage";
 import { AdminAuthProvider } from "@/contexts/AdminAuthContext";
 import { AdminLayout } from "@/pages/admin/AdminLayout";
 import { AdminDashboard } from "@/pages/admin/AdminDashboard";
-import { AdminPlaceholder } from "@/pages/admin/AdminPlaceholder";
 import { AdminUserManagement } from "@/pages/admin/AdminUserManagement";
 import { AdminCreateAccount } from "@/pages/admin/AdminCreateAccount";
 import { AdminExerciseMonitoring } from "@/pages/admin/AdminExerciseMonitoring";

@@ -5,7 +5,7 @@
  * https://x.com/soju22/status/1858925191671271801
  */
 
-import React, { useRef, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import {
   Clock,
   PerspectiveCamera,
@@ -14,7 +14,6 @@ import {
   type WebGLRendererParameters,
   SRGBColorSpace,
   MathUtils,
-  Vector2,
   Vector3,
   MeshPhysicalMaterial,
   ShaderChunk,
@@ -26,8 +25,6 @@ import {
   AmbientLight,
   PointLight,
   ACESFilmicToneMapping,
-  Raycaster,
-  Plane,
 } from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 
@@ -333,10 +330,6 @@ class W {
       vel.toArray(velocityData, base);
     }
   }
-}
-
-function saturate(x: number) {
-  return Math.max(0, Math.min(1, x));
 }
 
 class BloodCellMaterial extends MeshPhysicalMaterial {

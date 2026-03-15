@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { GetStartedButton } from "@/components/GetStartedButton";
 import { ChevronDown } from "lucide-react";
 import { Heart, Shield, Sparkles } from "lucide-react";
 
