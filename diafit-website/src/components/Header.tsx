@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Logo } from "./Logo";
 import { useLoginModal } from "@/contexts/LoginModalContext";
@@ -12,14 +13,36 @@ const NAV_LINKS = [
 export function Header() {
   const { openLoginModal } = useLoginModal();
   const location = useLocation();
+  const [visible, setVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY <= 0) {
+        setVisible(true);
+      } else if (currentScrollY > lastScrollY.current) {
+        setVisible(false);
+      } else {
+        setVisible(true);
+      }
+      lastScrollY.current = currentScrollY;
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
     <nav
       role="navigation"
       aria-label="Main navigation"
-      className="sticky top-0 z-50 w-full px-4 pt-4 sm:px-6 sm:pt-5"
+      className="sticky top-0 z-50 w-full px-4 pt-4 transition-transform duration-300 ease-out sm:px-6 sm:pt-5"
+      style={{
+        transform: visible ? "translateY(0)" : "translateY(-100%)",
+        background: "transparent",
+      }}
     >
-      <div className="mx-auto flex max-w-5xl items-center gap-6 rounded-2xl border border-slate-200/80 bg-white px-5 py-3 shadow-lg sm:gap-8 sm:px-6 sm:py-3">
+      <div className="mx-auto flex max-w-5xl items-center gap-6 px-5 py-3 sm:px-6 sm:py-3" style={{ background: "transparent" }}>
         <Link
           to="/"
           className="flex shrink-0 items-center transition-opacity hover:opacity-90"

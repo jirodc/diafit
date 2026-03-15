@@ -11,6 +11,18 @@ Copy `.env.example` to `.env` and set:
 
 Use the same values as in the mobile app (`app.json` / `EXPO_PUBLIC_*`) if you share one project.
 
+### Deploying (e.g. Vercel)
+
+Your local `.env` is not used when Vercel builds the app. Add the same variables in **Vercel** so the build gets them:
+
+1. Vercel Dashboard → your project → **Settings** → **Environment Variables**.
+2. Add:
+   - **Name:** `VITE_SUPABASE_URL`  
+     **Value:** `https://YOUR_PROJECT_REF.supabase.co`
+   - **Name:** `VITE_SUPABASE_ANON_KEY`  
+     **Value:** your anon key from Supabase → Project Settings → API
+3. Save, then trigger a **Redeploy** (Deployments → ⋮ → Redeploy) so the new build inlines these values.
+
 ## Website-only tables
 
 Defined in repo: `database/website_tables.sql`. Already created in your project:

@@ -21,9 +21,9 @@ export default function App() {
   const isAdmin = location.pathname.startsWith("/admin"); // Admin routes bypass website login; no auth required for /admin
 
   return (
-    <div className="min-h-screen antialiased flex flex-col relative font-sans">
+    <div className="min-h-0 w-full antialiased flex flex-col relative font-sans">
       <LoginModalProvider bypass={isAdmin}>
-        <div className="relative z-10 flex min-h-screen flex-col">
+        <div className="relative z-10 flex min-h-0 w-full flex-col">
           {!isAdmin && <Header />}
           <main className="flex-1">
             <Routes>

@@ -50,7 +50,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
       e.preventDefault();
       setError(null);
       if (!supabase) {
-        setError("Sign-in is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.");
+        setError("Sign-in is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your deployment (e.g. Vercel → Project Settings → Environment Variables), then redeploy.");
         return;
       }
       setLoading(true);

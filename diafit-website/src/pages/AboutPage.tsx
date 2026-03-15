@@ -5,11 +5,42 @@ import { Heart, Shield, Sparkles } from "lucide-react";
 
 const SKY_BLUE = "#B7D6FB";
 
-const TEAM = [
-  { name: "Jiro L. Del Carmon", title: "UI/UX Developer", avatarUrl: "/team/Delcarmen.jpg" },
-  { name: "John Bryan V. Cancel", title: "Project Manager", avatarUrl: "/team/Cancel.jpg" },
-  { name: "John Brieyloo E. Umipon", title: "UI & Documentation", avatarUrl: "/team/Umipon.jpg" },
+type TeamMember = {
+  name: string;
+  title: string;
+  avatarUrl: string;
+  initials: string;
+};
+
+const TEAM: TeamMember[] = [
+  { name: "Jiro L. Del Carmon", title: "UI/UX Developer", avatarUrl: "/team/Delcarmen.jpg", initials: "JD" },
+  { name: "John Bryan V. Cancel", title: "Project Manager", avatarUrl: "/team/Cancel.jpg", initials: "JC" },
+  { name: "John Brieyloo E. Umipon", title: "UI & Documentation", avatarUrl: "/team/Umipon.jpg", initials: "JU" },
 ];
+
+function TeamMemberCard({ member }: { member: TeamMember }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const displayUrl = imageFailed
+    ? `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&size=256&background=B7D6FB&color=1e3a5f&bold=true`
+    : member.avatarUrl;
+
+  return (
+    <div className="flex flex-col items-center text-center">
+      <div className="h-32 w-32 overflow-hidden rounded-full border-2 border-slate-100 bg-[#B7D6FB]">
+        <img
+          src={displayUrl}
+          alt={member.name}
+          className="h-full w-full object-cover"
+          onError={() => {
+            if (!imageFailed) setImageFailed(true);
+          }}
+        />
+      </div>
+      <h3 className="mt-5 text-lg font-bold text-slate-900">{member.name}</h3>
+      <p className="mt-1 text-sm font-medium text-blue-600">{member.title}</p>
+    </div>
+  );
+}
 
 const CORE_VALUES = [
   {
@@ -234,20 +265,7 @@ export default function AboutPage() {
           </p>
           <div className="mt-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
             {TEAM.map((member) => (
-              <div key={member.name} className="flex flex-col items-center text-center">
-                <div className="h-32 w-32 overflow-hidden rounded-full border-2 border-slate-100 bg-slate-100">
-                  <img
-                    src={member.avatarUrl}
-                    alt={member.name}
-                    className="h-full w-full object-cover"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                  />
-                </div>
-                <h3 className="mt-5 text-lg font-bold text-slate-900">{member.name}</h3>
-                <p className="mt-1 text-sm font-medium text-blue-600">
-                  {member.title}
-                </p>
-              </div>
+              <TeamMemberCard key={member.name} member={member} />
             ))}
           </div>
         </div>
