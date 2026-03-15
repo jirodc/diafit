@@ -51,6 +51,7 @@ async function checkIsAdmin(userId: string, email: string | undefined): Promise<
 }
 
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
