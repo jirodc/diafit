@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 
 /** Any @diafit.com user is an admin. Superadmin (only one who can register new admins) is admin@diafit.com. */
@@ -121,7 +122,8 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     setUserId(null);
     setUserEmail(null);
     setError(null);
-  }, []);
+    navigate("/", { replace: true });
+  }, [navigate]);
 
   const clearError = useCallback(() => setError(null), []);
 
