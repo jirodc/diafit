@@ -1,13 +1,16 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { Logo } from "@/components/Logo";
 import { AdminModalProvider } from "@/contexts/AdminModalContext";
 import { AdminNotificationsPanel } from "@/components/admin/AdminNotificationsPanel";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
+import { SUPERADMIN_EMAIL } from "@/contexts/AdminAuthContext";
+import { updateAdminLastSeen } from "@/lib/adminData";
 import { AdminLoginView } from "@/pages/admin/AdminLoginView";
 import {
   LayoutDashboard,
   Users,
+  UserPlus,
   BarChart3,
   Dumbbell,
   UtensilsCrossed,
@@ -22,6 +25,7 @@ import {
 const NAV_ITEMS = [
   { to: "/admin", end: true, label: "Dashboard", icon: LayoutDashboard },
   { to: "/admin/users", end: false, label: "User Management", icon: Users },
+  { to: "/admin/create-account", end: true, label: "Register admin", icon: UserPlus, superadminOnly: true },
   { to: "/admin/analytics", end: false, label: "Analytics", icon: BarChart3 },
   { to: "/admin/exercises", end: false, label: "Exercise", icon: Dumbbell },
   { to: "/admin/meal-plans", end: false, label: "Meal Plans", icon: UtensilsCrossed },
@@ -29,9 +33,26 @@ const NAV_ITEMS = [
   { to: "/admin/history-logs", end: false, label: "History Logs", icon: History },
 ] as const;
 
-export function AdminLayout() {
-  const { isAuthenticated, logout } = useAdminAuth();
+const HEARTBEAT_INTERVAL_MS = 2 * 60 * 1000; // 2 min
 
+export function AdminLayout() {
+  const { isAuthenticated, isLoading, userId, userEmail, logout } = useAdminAuth();
+  const isSuperadmin = (userEmail ?? "").toLowerCase() === SUPERADMIN_EMAIL;
+
+  useEffect(() => {
+    if (!isAuthenticated || !userId) return;
+    updateAdminLastSeen(userId);
+    const interval = setInterval(() => updateAdminLastSeen(userId), HEARTBEAT_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, userId]);
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <p className="text-slate-500">Loading…</p>
+      </div>
+    );
+  }
   if (!isAuthenticated) {
     return <AdminLoginView />;
   }
@@ -45,7 +66,7 @@ export function AdminLayout() {
           <span className="text-sm font-medium text-slate-600">Admin Panel</span>
         </div>
         <nav className="flex-1 space-y-0.5 p-3">
-          {NAV_ITEMS.map(({ to, end, label, icon: Icon }) => (
+          {NAV_ITEMS.filter((item) => !("superadminOnly" in item && item.superadminOnly) || isSuperadmin).map(({ to, end, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -66,15 +87,15 @@ export function AdminLayout() {
         <div className="border-t border-slate-200 p-3">
           <div className="flex items-center gap-3 rounded-lg px-3 py-2.5">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-700">
-              AD
+              {isSuperadmin ? "SA" : "AD"}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-slate-900">Admin User</p>
-              <p className="truncate text-xs text-slate-500">admin@diafit.com</p>
+              <p className="truncate text-sm font-medium text-slate-900">{isSuperadmin ? "Superadmin" : "Admin"}</p>
+              <p className="truncate text-xs text-slate-500">{userEmail ?? ""}</p>
             </div>
             <button
               type="button"
-              onClick={logout}
+              onClick={() => void logout()}
               className="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
               aria-label="Log out"
             >

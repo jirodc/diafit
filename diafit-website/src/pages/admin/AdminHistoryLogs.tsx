@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   AreaChart,
   Area,
@@ -19,6 +19,8 @@ import {
 import { RechartsDevtools } from "@recharts/devtools";
 import { AdminHeader } from "./AdminLayout";
 import { useAdminConfirm } from "@/contexts/AdminModalContext";
+import { fetchTaskCompletions, fetchHistoryCharts, type HistoryLogRow, type DateRange } from "@/lib/adminData";
+import { DateRangeFilter } from "@/components/admin/DateRangeFilter";
 import {
   Search,
   Download,
@@ -34,6 +36,7 @@ import {
   Heart,
   Calendar,
   Info,
+  CheckCircle,
   type LucideIcon,
 } from "lucide-react";
 
@@ -80,48 +83,14 @@ const ACTIVITY_ICONS: Record<ActivityType, { icon: LucideIcon; bg: string; color
   signup: { icon: UserPlus, bg: "bg-emerald-100", color: "text-emerald-600" },
 };
 
-const MOCK_LOGS: HistoryLogEntry[] = [
-  { id: "1", timestamp: "2025-03-15T14:32:00Z", type: "new_user", activityType: "signup", action: "New user signed up", description: "Sarah Johnson joined the platform.", actor: "Patient", details: "sarah@example.com", status: "success" },
-  { id: "2", timestamp: "2025-03-15T14:28:00Z", type: "admin", activityType: "admin", action: "Admin logged in", description: "Admin session started.", actor: "Admin User", details: "admin@diafit.com", status: "success" },
-  { id: "3", timestamp: "2025-03-15T14:15:00Z", type: "admin", activityType: "consultation", action: "Consultation updated", description: "Follow-up consultation completed. Discussed glucose trends and medication adjustment.", actor: "Dr. Smith", status: "success" },
-  { id: "4", timestamp: "2025-03-15T13:58:00Z", type: "new_user", activityType: "lab", action: "Lab results uploaded", description: "HbA1c: 7.2%, Fasting glucose: 145 mg/dL, Cholesterol: 185 mg/dL.", actor: "Nurse", status: "success" },
-  { id: "5", timestamp: "2025-03-15T13:42:00Z", type: "new_user", activityType: "glucose", action: "Glucose reading", description: "Morning glucose reading: 142 mg/dL (within target range).", actor: "Patient", status: "success" },
-  { id: "6", timestamp: "2025-03-15T13:20:00Z", type: "new_user", activityType: "glucose", action: "Glucose reading", description: "Morning glucose reading: 185 mg/dL (slightly elevated).", actor: "Patient", status: "warning" },
-  { id: "7", timestamp: "2025-03-15T12:55:00Z", type: "new_user", activityType: "medication", action: "Medication taken", description: "Metformin 500mg – Morning dose confirmed via app.", actor: "Patient", status: "success" },
-  { id: "8", timestamp: "2025-03-15T12:30:00Z", type: "new_user", activityType: "medication", action: "Medication taken", description: "Insulin Glargine 20 units – Morning dose.", actor: "Patient", status: "success" },
-  { id: "9", timestamp: "2025-03-15T11:10:00Z", type: "new_user", activityType: "meal", action: "Meal logged", description: "Breakfast: Oatmeal with berries (40g carbs, 220 calories).", actor: "Patient", status: "success" },
-  { id: "10", timestamp: "2025-03-15T10:45:00Z", type: "new_user", activityType: "meal", action: "Meal logged", description: "Dinner: Grilled salmon with vegetables (30g carbs, 450 calories).", actor: "Patient", status: "success" },
-  { id: "11", timestamp: "2025-03-15T10:22:00Z", type: "new_user", activityType: "exercise", action: "Exercise logged", description: "30 min walk. 2.1 km, light intensity.", actor: "Patient", status: "success" },
-  { id: "12", timestamp: "2025-03-14T18:00:00Z", type: "new_user", activityType: "vitals", action: "Vitals recorded", description: "Blood pressure 122/78 mmHg, heart rate 72 bpm.", actor: "Patient", status: "success" },
-  { id: "13", timestamp: "2025-03-14T17:35:00Z", type: "admin", activityType: "appointment", action: "Appointment scheduled", description: "Follow-up visit with Dr. Smith on Mar 20, 2025.", actor: "Admin User", status: "success" },
-  { id: "14", timestamp: "2025-03-14T16:50:00Z", type: "admin", activityType: "consultation", action: "Consultation completed", description: "Initial consultation notes and care plan updated.", actor: "Dr. Smith", status: "success" },
-  { id: "15", timestamp: "2025-03-14T16:12:00Z", type: "new_user", activityType: "cgm", action: "CGM sensor placed", description: "Continuous glucose monitor sensor activated.", actor: "Nurse", status: "success" },
-];
-
-// Chart data: activity over last 7 days
-const LOGS_BY_DAY = [
-  { day: "Mar 9", admin: 12, newUser: 8 },
-  { day: "Mar 10", admin: 18, newUser: 14 },
-  { day: "Mar 11", admin: 15, newUser: 11 },
-  { day: "Mar 12", admin: 22, newUser: 19 },
-  { day: "Mar 13", admin: 20, newUser: 16 },
-  { day: "Mar 14", admin: 24, newUser: 22 },
-  { day: "Mar 15", admin: 11, newUser: 9 },
-];
-
-// Pie: Admin vs New user (for "Logs by Type" chart)
-const LOGS_BY_TYPE = [
-  { name: "Admin actions", value: 8, color: "#8b5cf6" },
-  { name: "New user", value: 7, color: "#22c55e" },
-];
-
-// Top actions (bar)
-const TOP_ACTIONS = [
-  { action: "New user signed up", count: 6 },
-  { action: "Admin logged in", count: 2 },
-  { action: "Data exported", count: 3 },
-  { action: "User profile updated", count: 2 },
-  { action: "Email verified", count: 1 },
+const DEFAULT_BY_DAY = [
+  { day: "Sun", completed: 0, skipped: 0 },
+  { day: "Mon", completed: 0, skipped: 0 },
+  { day: "Tue", completed: 0, skipped: 0 },
+  { day: "Wed", completed: 0, skipped: 0 },
+  { day: "Thu", completed: 0, skipped: 0 },
+  { day: "Fri", completed: 0, skipped: 0 },
+  { day: "Sat", completed: 0, skipped: 0 },
 ];
 
 function formatLogTime(iso: string): string {
@@ -150,28 +119,48 @@ function formatLogTimestamp(iso: string): string {
 
 export function AdminHistoryLogs() {
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | LogType>("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "completed" | "skipped">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | LogStatus>("all");
-  const [dateFilter, setDateFilter] = useState("7d");
+  const [dateRange, setDateRange] = useState<DateRange>("all");
+  const [completions, setCompletions] = useState<HistoryLogRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [logsByDay, setLogsByDay] = useState<{ day: string; completed: number; skipped: number }[]>(DEFAULT_BY_DAY);
+  const [logsByType, setLogsByType] = useState<{ name: string; value: number; color: string }[]>([]);
+  const [topActions, setTopActions] = useState<{ action: string; count: number }[]>([]);
   const confirm = useAdminConfirm();
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    Promise.all([fetchTaskCompletions(80, dateRange), fetchHistoryCharts(dateRange)])
+      .then(([rows, charts]) => {
+        if (cancelled) return;
+        setCompletions(rows);
+        setLogsByDay(charts.byDay?.length ? charts.byDay : DEFAULT_BY_DAY);
+        setLogsByType(charts.byType || []);
+        setTopActions(charts.topActions || []);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [dateRange]);
 
   const filteredLogs = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return MOCK_LOGS.filter((log) => {
-      const matchType = typeFilter === "all" || log.type === typeFilter;
-      const matchStatus = statusFilter === "all" || log.status === statusFilter;
+    return completions.filter((log) => {
+      const matchType = typeFilter === "all" || (typeFilter === "completed" && !log.skipped) || (typeFilter === "skipped" && log.skipped);
+      const matchStatus = statusFilter === "all" || (statusFilter === "success" && !log.skipped) || (statusFilter === "warning" && log.skipped);
       const matchSearch =
         !q ||
-        log.action.toLowerCase().includes(q) ||
-        log.description.toLowerCase().includes(q) ||
-        log.actor.toLowerCase().includes(q) ||
-        (log.details && log.details.toLowerCase().includes(q));
+        (log.user_name ?? "").toLowerCase().includes(q) ||
+        (log.task_name ?? "").toLowerCase().includes(q);
       return matchType && matchStatus && matchSearch;
     });
-  }, [search, typeFilter, statusFilter]);
+  }, [completions, search, typeFilter, statusFilter]);
 
-  const adminCount = MOCK_LOGS.filter((l) => l.type === "admin").length;
-  const newUserCount = MOCK_LOGS.filter((l) => l.type === "new_user").length;
+  const completedCount = completions.filter((c) => !c.skipped).length;
+  const skippedCount = completions.filter((c) => c.skipped).length;
 
   const handleExport = () => {
     confirm({
@@ -189,14 +178,17 @@ export function AdminHistoryLogs() {
         subtitle="All admin actions and new user activity"
       />
       <div className="p-6">
+        <div className="mb-4 flex flex-wrap items-center justify-end">
+          <DateRangeFilter value={dateRange} onChange={setDateRange} />
+        </div>
         {/* KPI cards */}
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-500">Total logs</p>
-                <p className="mt-1 text-2xl font-semibold text-slate-900">{MOCK_LOGS.length}</p>
-                <p className="mt-1 text-xs text-slate-500">Last 7 days</p>
+                <p className="text-sm font-medium text-slate-500">Total task logs</p>
+                <p className="mt-1 text-2xl font-semibold text-slate-900">{loading ? "…" : completions.length}</p>
+                <p className="mt-1 text-xs text-slate-500">From database</p>
               </div>
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
                 <FileText className="h-5 w-5" />
@@ -206,22 +198,22 @@ export function AdminHistoryLogs() {
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-500">Admin actions</p>
-                <p className="mt-1 text-2xl font-semibold text-slate-900">{adminCount}</p>
+                <p className="text-sm font-medium text-slate-500">Completed</p>
+                <p className="mt-1 text-2xl font-semibold text-slate-900">{loading ? "…" : completedCount}</p>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
-                <Shield className="h-5 w-5" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                <CheckCircle className="h-5 w-5" />
               </div>
             </div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-500">New user events</p>
-                <p className="mt-1 text-2xl font-semibold text-slate-900">{newUserCount}</p>
+                <p className="text-sm font-medium text-slate-500">Skipped</p>
+                <p className="mt-1 text-2xl font-semibold text-slate-900">{loading ? "…" : skippedCount}</p>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
-                <UserPlus className="h-5 w-5" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                <Activity className="h-5 w-5" />
               </div>
             </div>
           </div>
@@ -243,17 +235,17 @@ export function AdminHistoryLogs() {
         <div className="mb-6 grid gap-6 lg:grid-cols-2">
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="font-semibold text-slate-900">Activity Over Time</h2>
-            <p className="mt-0.5 text-sm text-slate-500">Admin vs new user events per day</p>
+            <p className="mt-0.5 text-sm text-slate-500">Task completions vs skipped by day of week</p>
             <div className="mt-4 h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={LOGS_BY_DAY} margin={{ top: 12, right: 12, left: 0, bottom: 8 }}>
+                <AreaChart data={logsByDay} margin={{ top: 12, right: 12, left: 0, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                   <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#64748b" }} />
                   <YAxis tick={{ fontSize: 11, fill: "#64748b" }} width={32} />
                   <Tooltip cursor={{ fill: "#f1f5f9" }} contentStyle={{ fontSize: 12 }} />
                   <Legend />
-                  <Area type="monotone" dataKey="admin" name="Admin" stackId="a" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.6} />
-                  <Area type="monotone" dataKey="newUser" name="New user" stackId="a" stroke="#22c55e" fill="#22c55e" fillOpacity={0.6} />
+                  <Area type="monotone" dataKey="completed" name="Completed" stackId="a" stroke="#22c55e" fill="#22c55e" fillOpacity={0.6} />
+                  <Area type="monotone" dataKey="skipped" name="Skipped" stackId="a" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.6} />
                   <RechartsDevtools />
                 </AreaChart>
               </ResponsiveContainer>
@@ -261,13 +253,13 @@ export function AdminHistoryLogs() {
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="font-semibold text-slate-900">Logs by Type</h2>
-            <p className="mt-0.5 text-sm text-slate-500">Admin actions vs new user activity</p>
+            <p className="mt-0.5 text-sm text-slate-500">Completed vs skipped task logs</p>
             <div className="mt-4 flex items-center gap-6">
               <div className="h-52 w-52 shrink-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={LOGS_BY_TYPE}
+                      data={logsByType.length ? logsByType : [{ name: "No data", value: 1, color: "#e2e8f0" }]}
                       dataKey="value"
                       nameKey="name"
                       cx="50%"
@@ -277,7 +269,7 @@ export function AdminHistoryLogs() {
                       paddingAngle={2}
                       label={({ name, value }) => `${name}: ${value}`}
                     >
-                      {LOGS_BY_TYPE.map((entry, i) => (
+                      {(logsByType.length ? logsByType : [{ name: "No data", value: 1, color: "#e2e8f0" }]).map((entry) => (
                         <Cell key={entry.name} fill={entry.color} />
                       ))}
                     </Pie>
@@ -287,7 +279,7 @@ export function AdminHistoryLogs() {
                 </ResponsiveContainer>
               </div>
               <ul className="space-y-1.5">
-                {LOGS_BY_TYPE.map((c) => (
+                {logsByType.map((c) => (
                   <li key={c.name} className="flex items-center gap-2 text-sm">
                     <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
                     <span className="text-slate-700">{c.name}</span>
@@ -305,7 +297,7 @@ export function AdminHistoryLogs() {
           <p className="mt-0.5 text-sm text-slate-500">Most frequent log actions</p>
           <div className="mt-4 h-56">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={TOP_ACTIONS} layout="vertical" margin={{ top: 4, right: 24, left: 4, bottom: 4 }}>
+              <BarChart data={topActions.length ? topActions : [{ action: "—", count: 0 }]} layout="vertical" margin={{ top: 4, right: 24, left: 4, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 11, fill: "#64748b" }} />
                 <YAxis type="category" dataKey="action" width={140} tick={{ fontSize: 11, fill: "#475569" }} />
@@ -318,7 +310,7 @@ export function AdminHistoryLogs() {
         </div>
 
         <h2 className="mb-4 text-lg font-semibold text-slate-900">
-          Patient Activity History ({filteredLogs.length} entries found)
+          Task Completion History ({loading ? "…" : filteredLogs.length} entries)
         </h2>
         <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative flex-1">
@@ -334,12 +326,12 @@ export function AdminHistoryLogs() {
           <div className="flex flex-wrap gap-2">
             <select
               value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as "all" | LogType)}
+              onChange={(e) => setTypeFilter(e.target.value as "all" | "completed" | "skipped")}
               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-[var(--diafit-blue)]"
             >
-              <option value="all">All Types</option>
-              <option value="admin">Admin actions</option>
-              <option value="new_user">New users</option>
+              <option value="all">All</option>
+              <option value="completed">Completed</option>
+              <option value="skipped">Skipped</option>
             </select>
             <select
               value={statusFilter}
@@ -349,15 +341,6 @@ export function AdminHistoryLogs() {
               <option value="all">All Status</option>
               <option value="success">Success</option>
               <option value="warning">Warning</option>
-            </select>
-            <select
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-[var(--diafit-blue)]"
-            >
-              <option value="7d">Last 7 days</option>
-              <option value="30d">Last 30 days</option>
-              <option value="all">All time</option>
             </select>
             <button
               type="button"
@@ -370,54 +353,43 @@ export function AdminHistoryLogs() {
         </div>
 
         <div className="space-y-3">
-          {filteredLogs.length === 0 ? (
+          {loading ? (
             <div className="rounded-xl border border-slate-200 bg-white py-12 text-center text-slate-500 shadow-sm">
-              No logs match your filters.
+              Loading…
+            </div>
+          ) : filteredLogs.length === 0 ? (
+            <div className="rounded-xl border border-slate-200 bg-white py-12 text-center text-slate-500 shadow-sm">
+              No task completions match your filters.
             </div>
           ) : (
-            filteredLogs.map((log) => {
-              const { icon: Icon, bg, color } = ACTIVITY_ICONS[log.activityType];
-              return (
-                <div
-                  key={log.id}
-                  className="flex flex-wrap items-start gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-nowrap"
-                >
-                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${bg} ${color}`}>
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-slate-900">{log.action}</p>
-                    <p className="mt-0.5 text-sm text-slate-600">{log.description}</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5" />
-                        {formatLogTimestamp(log.timestamp)}
-                      </span>
-                      <span>{log.actor}</span>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {log.status === "success" && (
-                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                        Success
-                      </span>
-                    )}
-                    {log.status === "warning" && (
-                      <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
-                        Warning
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                      onClick={() => {}}
-                    >
-                      <Info className="h-3.5 w-3.5" /> View
-                    </button>
+            filteredLogs.map((log) => (
+              <div
+                key={log.id}
+                className="flex flex-wrap items-start gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-nowrap"
+              >
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${log.skipped ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"}`}>
+                  {log.skipped ? <Activity className="h-5 w-5" /> : <CheckCircle className="h-5 w-5" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-slate-900">{log.skipped ? "Task skipped" : "Task completed"}</p>
+                  <p className="mt-0.5 text-sm text-slate-600">{log.task_name ?? "Task"}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      {formatLogTimestamp(log.completed_at)}
+                    </span>
+                    <span>{log.user_name ?? "Unknown"}</span>
                   </div>
                 </div>
-              );
-            })
+                <div className="flex shrink-0 items-center gap-2">
+                  {log.skipped ? (
+                    <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">Skipped</span>
+                  ) : (
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">Completed</span>
+                  )}
+                </div>
+              </div>
+            ))
           )}
         </div>
       </div>

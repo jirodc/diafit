@@ -10,6 +10,7 @@ import { AdminLayout } from "@/pages/admin/AdminLayout";
 import { AdminDashboard } from "@/pages/admin/AdminDashboard";
 import { AdminPlaceholder } from "@/pages/admin/AdminPlaceholder";
 import { AdminUserManagement } from "@/pages/admin/AdminUserManagement";
+import { AdminCreateAccount } from "@/pages/admin/AdminCreateAccount";
 import { AdminExerciseMonitoring } from "@/pages/admin/AdminExerciseMonitoring";
 import { AdminMealPlanMonitoring } from "@/pages/admin/AdminMealPlanMonitoring";
 import { AdminMedicationMonitoring } from "@/pages/admin/AdminMedicationMonitoring";
@@ -30,6 +31,7 @@ export default function App() {
               <Route path="/admin" element={<AdminAuthProvider><AdminLayout /></AdminAuthProvider>}>
                 <Route index element={<AdminDashboard />} />
                 <Route path="users" element={<AdminUserManagement />} />
+                <Route path="create-account" element={<AdminCreateAccount />} />
                 <Route path="analytics" element={<AdminAnalytics />} />
                 <Route path="exercises" element={<AdminExerciseMonitoring />} />
                 <Route path="meal-plans" element={<AdminMealPlanMonitoring />} />

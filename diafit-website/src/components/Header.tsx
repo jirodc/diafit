@@ -1,7 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { Logo } from "./Logo";
 import { useLoginModal } from "@/contexts/LoginModalContext";
-import { GetStartedButton } from "@/components/GetStartedButton";
 
 const NAV_LINKS = [
   { to: "/", label: "Home" },
@@ -51,19 +50,11 @@ export function Header() {
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <button
             type="button"
-            onClick={() => openLoginModal({ mode: "signup" })}
-            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 sm:px-5"
-          >
-            Create account
-          </button>
-          <button
-            type="button"
             onClick={() => openLoginModal()}
             className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 sm:px-5"
           >
             Login
           </button>
-          <GetStartedButton className="hidden rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-700 sm:inline-flex sm:px-5" />
         </div>
       </div>
     </nav>

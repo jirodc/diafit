@@ -6,11 +6,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
-<<<<<<< HEAD
 
 const PROFILE_KEY = '@diafit_profile_complete';
-=======
->>>>>>> layouts/ui
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HORIZONTAL_MARGIN = Math.max(16, SCREEN_WIDTH * 0.04);
@@ -178,7 +175,6 @@ export default function HomeScreen() {
   const handleProfileMenuItem = async (item: (typeof PROFILE_MENU_ITEMS)[0]) => {
     setProfileMenuVisible(false);
     if (item.isLogout) {
-<<<<<<< HEAD
       Alert.alert(
         'Log Out',
         'Are you sure you want to log out?',
@@ -195,15 +191,6 @@ export default function HomeScreen() {
           },
         ]
       );
-=======
-      try {
-        await supabase.auth.signOut();
-        await AsyncStorage.removeItem('@diafit_profile_complete');
-        router.replace('/(auth)/welcome');
-      } catch {
-        router.replace('/(auth)/welcome');
-      }
->>>>>>> layouts/ui
       return;
     }
     if (item.path) {
@@ -352,7 +339,6 @@ export default function HomeScreen() {
           </View>
         </View>
 
-<<<<<<< HEAD
         {/* 7-Day Glucose Trend card - only show if data exists */}
         {glucoseTrendData.length > 0 && (
           <View style={[styles.card, cardShadow, { marginHorizontal: HORIZONTAL_MARGIN, marginBottom: 16 }]}>
@@ -360,32 +346,6 @@ export default function HomeScreen() {
               <View className="flex-row items-center gap-2" style={{ flex: 1, minWidth: 0 }}>
                 <Text className="text-lg font-bold text-gray-900" numberOfLines={1}>7-Day Glucose Trend</Text>
                 <MaterialCommunityIcons name="chart-bar" size={20} color="#374151" />
-=======
-        {/* 7-Day Glucose Trend card */}
-        <View
-          className="bg-white rounded-2xl p-5 mb-4"
-          style={[cardShadow, { marginHorizontal: HORIZONTAL_MARGIN, marginBottom: 16 }]}
-        >
-          <View className="flex-row items-center justify-between mb-2">
-            <View className="flex-row items-center gap-2">
-              <Text className="text-lg font-bold text-gray-900">7-Day Glucose Trend</Text>
-              <MaterialCommunityIcons name="chart-bar" size={20} color="#374151" />
-            </View>
-            <Pressable>
-              <Text className="text-sm font-medium text-blue-600">View all</Text>
-            </Pressable>
-          </View>
-          <Text className="text-3xl font-bold text-gray-900">115</Text>
-          <Text className="text-sm text-gray-500 mb-4">Average mg/dL</Text>
-          <View className="flex-row items-end justify-between h-24 gap-1">
-            {WEEK_DAYS.map((day, i) => (
-              <View key={i} className="flex-1 items-center">
-                <View
-                  className="w-full rounded-t bg-blue-300 min-h-2"
-                  style={{ height: BAR_HEIGHTS[i] + 24 }}
-                />
-                <Text className="text-xs text-gray-500 mt-2">{day}</Text>
->>>>>>> layouts/ui
               </View>
               <Pressable onPress={() => router.push('/(tabs)/glucose')}>
                 <Text className="text-sm font-medium text-[#3B82F6]">View all</Text>
