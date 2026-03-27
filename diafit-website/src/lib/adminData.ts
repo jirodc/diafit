@@ -24,6 +24,130 @@ export function getDateRangeBounds(range: DateRange): { start: Date | null; end:
   return { start, end };
 }
 
+/** Human-readable label for the period filter (charts + exports). */
+export function getDateRangeLabel(range: DateRange): string {
+  switch (range) {
+    case "today":
+      return "Today";
+    case "7d":
+      return "Last 7 days";
+    case "30d":
+      return "Last 30 days";
+    default:
+      return "All time";
+  }
+}
+
+/** Unified admin activity feed (website + app milestones) for the notifications panel. */
+export type AdminFeedItem = {
+  id: string;
+  kind:
+    | "contact"
+    | "newsletter"
+    | "new_profile"
+    | "website_user"
+    | "glucose_high"
+    | "task_skipped";
+  title: string;
+  description: string;
+  created_at: string;
+};
+
+export async function fetchAdminFeedNotifications(limit = 40): Promise<AdminFeedItem[]> {
+  if (!supabase) return [];
+  const items: AdminFeedItem[] = [];
+  const push = (x: AdminFeedItem) => items.push(x);
+
+  const [
+    { data: contacts },
+    { data: subs },
+    { data: profiles },
+    { data: websiteUsers },
+    { data: glucoseRows },
+    { data: skipped },
+  ] = await Promise.all([
+    supabase.from("contact_submissions").select("id, name, email, message, created_at").order("created_at", { ascending: false }).limit(25),
+    supabase.from("newsletter_subscribers").select("id, email, created_at").order("created_at", { ascending: false }).limit(25),
+    supabase.from("profiles").select("id, full_name, email, created_at").order("created_at", { ascending: false }).limit(20),
+    supabase.from("website_user_profiles").select("user_id, full_name, created_at").order("created_at", { ascending: false }).limit(20),
+    supabase
+      .from("glucose_readings")
+      .select("id, value, reading_time, user_id, profiles(full_name, email)")
+      .order("reading_time", { ascending: false })
+      .limit(80),
+    supabase
+      .from("task_completions")
+      .select("id, user_id, completed_at, skipped, scheduled_tasks(name)")
+      .eq("skipped", true)
+      .order("completed_at", { ascending: false })
+      .limit(20),
+  ]);
+
+  for (const c of contacts ?? []) {
+    push({
+      id: `c-${c.id}`,
+      kind: "contact",
+      title: "Contact form submission",
+      description: `${c.name} (${c.email}): ${(c.message ?? "").slice(0, 120)}${(c.message?.length ?? 0) > 120 ? "…" : ""}`,
+      created_at: c.created_at,
+    });
+  }
+  for (const s of subs ?? []) {
+    push({
+      id: `n-${s.id}`,
+      kind: "newsletter",
+      title: "Newsletter signup",
+      description: s.email,
+      created_at: s.created_at,
+    });
+  }
+  for (const p of profiles ?? []) {
+    push({
+      id: `p-${p.id}`,
+      kind: "new_profile",
+      title: "New app profile",
+      description: `${p.full_name || p.email || "User"} signed up`,
+      created_at: p.created_at,
+    });
+  }
+  for (const w of websiteUsers ?? []) {
+    push({
+      id: `w-${w.user_id}`,
+      kind: "website_user",
+      title: "Website user registered",
+      description: w.full_name || "New admin-created user",
+      created_at: w.created_at,
+    });
+  }
+  const GLUCOSE_ALERT_MIN = 200;
+  for (const g of glucoseRows ?? []) {
+    if ((g.value ?? 0) < GLUCOSE_ALERT_MIN) continue;
+    const raw = g.profiles as { full_name?: string | null; email?: string | null } | { full_name?: string | null; email?: string | null }[] | null;
+    const prof = Array.isArray(raw) ? raw[0] : raw;
+    const who = prof?.full_name || prof?.email || "User";
+    push({
+      id: `g-${g.id}`,
+      kind: "glucose_high",
+      title: "High glucose reading",
+      description: `${who}: ${g.value} mg/dL`,
+      created_at: g.reading_time,
+    });
+  }
+  for (const t of skipped ?? []) {
+    const st = t.scheduled_tasks as { name?: string } | null;
+    push({
+      id: `sk-${t.id}`,
+      kind: "task_skipped",
+      title: "Scheduled task skipped",
+      description: st?.name ? `"${st.name}"` : "Task skipped",
+      created_at: t.completed_at,
+    });
+  }
+
+  items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  return items.slice(0, limit);
+}
+
 /** Role derived from email: admin@diafit.com → Super admin, *@diafit.com → Admin, else → Patient */
 export function getRoleFromEmail(email: string | null | undefined): "Super admin" | "Admin" | "Patient" {
   const e = (email ?? "").trim().toLowerCase();

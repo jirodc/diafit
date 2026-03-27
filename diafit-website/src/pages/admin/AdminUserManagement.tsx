@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AdminHeader } from "./AdminLayout";
 import { useAdminConfirm } from "@/contexts/AdminModalContext";
 import { fetchAdminUsers, type AdminUserRow } from "@/lib/adminData";
+import { downloadAdminTablePdf } from "@/lib/adminPdfExport";
 import { Search, Download, Eye, Pencil, X } from "lucide-react";
 
 export type UserRole = "Super admin" | "Admin" | "Patient";
@@ -291,11 +292,23 @@ export function AdminUserManagement() {
               onClick={() => {
                 confirm({
                   title: "Export users",
-                  message: "Export the current user list?",
-                  confirmLabel: "Export",
+                  message: `Download a PDF of the user table as shown (${filteredUsers.length} rows, status filter + search applied)?`,
+                  confirmLabel: "Export PDF",
                   onConfirm: () => {
-                    // Placeholder: trigger download or API
-                    console.log("Export confirmed", filteredUsers.length);
+                    downloadAdminTablePdf({
+                      title: "User management export",
+                      periodLabel: "Current table view (search & status filters applied)",
+                      columns: ["Name", "Email", "Role", "Status", "Last active", "Glucose readings"],
+                      rows: filteredUsers.map((u) => [
+                        u.name,
+                        u.email || "—",
+                        u.role,
+                        u.status,
+                        u.lastActive,
+                        String(u.glucoseReadings),
+                      ]),
+                      filenameBase: "diafit-users",
+                    });
                   },
                 });
               }}

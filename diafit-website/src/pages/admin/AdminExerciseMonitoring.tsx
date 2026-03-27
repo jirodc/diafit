@@ -6,8 +6,9 @@ import { renderPieLabelInside } from "@/components/admin/PieChartCustomLabel";
 import { RechartsDevtools } from "@recharts/devtools";
 import { AdminHeader } from "./AdminLayout";
 import { useAdminConfirm } from "@/contexts/AdminModalContext";
-import { fetchWorkoutLogs, fetchWorkoutCharts, type WorkoutLogRow, type DateRange } from "@/lib/adminData";
+import { fetchWorkoutLogs, fetchWorkoutCharts, getDateRangeLabel, type WorkoutLogRow, type DateRange } from "@/lib/adminData";
 import { DateRangeFilter } from "@/components/admin/DateRangeFilter";
+import { downloadAdminTablePdf } from "@/lib/adminPdfExport";
 import {
   Layers,
   Users,
@@ -31,6 +32,15 @@ function formatWorkoutDate(iso: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+/** Heuristic category for workouts without a DB column (keywords in name). */
+function workoutCategoryFromName(name: string | null): "strength" | "cardio" | "flexibility" | "other" {
+  const n = (name ?? "").toLowerCase();
+  if (/yoga|stretch|flex|pilates|mobility/.test(n)) return "flexibility";
+  if (/run|walk|bike|swim|cardio|elliptical|row|jog|hiit|aerobic|treadmill|cycling/.test(n)) return "cardio";
+  if (/lift|squat|bench|strength|weight|deadlift|press|gym|dumbbell|barbell|rep/.test(n)) return "strength";
+  return "other";
+}
+
 const DEFAULT_WEEKLY = [
   { day: "Sun", sessions: 0 },
   { day: "Mon", sessions: 0 },
@@ -45,7 +55,6 @@ export function AdminExerciseMonitoring() {
   const [dateRange, setDateRange] = useState<DateRange>("all");
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [timeFilter, setTimeFilter] = useState("this-week");
   const [workoutLogs, setWorkoutLogs] = useState<WorkoutLogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [popularExercises, setPopularExercises] = useState<{ name: string; activeUsers: number; completedSessions: number }[]>([]);
@@ -89,20 +98,39 @@ export function AdminExerciseMonitoring() {
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return workoutLogs;
-    return workoutLogs.filter(
-      (r) =>
+    return workoutLogs.filter((r) => {
+      const cat = workoutCategoryFromName(r.custom_workout_name);
+      if (categoryFilter !== "all" && cat !== categoryFilter) return false;
+      if (!q) return true;
+      return (
         (r.user_name ?? "").toLowerCase().includes(q) ||
         (r.custom_workout_name ?? "").toLowerCase().includes(q)
-    );
-  }, [workoutLogs, search]);
+      );
+    });
+  }, [workoutLogs, search, categoryFilter]);
 
   const handleExport = () => {
     confirm({
       title: "Export data",
-      message: "Export exercise activity data?",
-      confirmLabel: "Export",
-      onConfirm: () => console.log("Export exercise data", filteredRows.length),
+      message: `Download a PDF of the exercise table as shown (${getDateRangeLabel(dateRange)}, ${filteredRows.length} rows)?`,
+      confirmLabel: "Export PDF",
+      onConfirm: () => {
+        const cols = ["User", "Workout", "Duration (min)", "Calories", "Date (UTC)"];
+        const rows = filteredRows.map((r) => [
+          r.user_name ?? "—",
+          r.custom_workout_name ?? "—",
+          String(r.duration_minutes ?? 0),
+          String(r.calories_burned ?? 0),
+          new Date(r.workout_date).toISOString(),
+        ]);
+        downloadAdminTablePdf({
+          title: "Exercise activity export",
+          periodLabel: getDateRangeLabel(dateRange),
+          columns: cols,
+          rows,
+          filenameBase: `diafit-exercise-${getDateRangeLabel(dateRange).replace(/\s+/g, "-")}`,
+        });
+      },
     });
   };
 
@@ -315,15 +343,7 @@ export function AdminExerciseMonitoring() {
                 <option value="strength">Strength</option>
                 <option value="cardio">Cardio</option>
                 <option value="flexibility">Flexibility</option>
-              </select>
-              <select
-                value={timeFilter}
-                onChange={(e) => setTimeFilter(e.target.value)}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-[var(--diafit-blue)]"
-              >
-                <option value="this-week">This Week</option>
-                <option value="this-month">This Month</option>
-                <option value="all">All Time</option>
+                <option value="other">Other / uncategorized</option>
               </select>
               <button
                 type="button"

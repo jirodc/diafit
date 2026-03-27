@@ -19,8 +19,9 @@ import { renderPieLabelInside } from "@/components/admin/PieChartCustomLabel";
 import { RechartsDevtools } from "@recharts/devtools";
 import { AdminHeader } from "./AdminLayout";
 import { useAdminConfirm } from "@/contexts/AdminModalContext";
-import { fetchMealLogs, fetchMealCharts, type MealLogRow, type DateRange } from "@/lib/adminData";
+import { fetchMealLogs, fetchMealCharts, getDateRangeLabel, type MealLogRow, type DateRange } from "@/lib/adminData";
 import { DateRangeFilter } from "@/components/admin/DateRangeFilter";
+import { downloadAdminTablePdf } from "@/lib/adminPdfExport";
 import { UtensilsCrossed, Users, Flame, TrendingUp, Search, Download, Eye } from "lucide-react";
 
 function formatMealTime(iso: string): string {
@@ -50,7 +51,6 @@ export function AdminMealPlanMonitoring() {
   const [dateRange, setDateRange] = useState<DateRange>("all");
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [timeFilter, setTimeFilter] = useState("this-week");
   const [mealLogs, setMealLogs] = useState<MealLogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [popularMeals, setPopularMeals] = useState<{ name: string; activeUsers: number; totalLogs: number }[]>([]);
@@ -90,21 +90,42 @@ export function AdminMealPlanMonitoring() {
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return mealLogs;
-    return mealLogs.filter(
-      (r) =>
+    return mealLogs.filter((r) => {
+      const cat = (r.category ?? "").toLowerCase();
+      if (categoryFilter !== "all") {
+        if (categoryFilter === "snacks") {
+          if (!cat.includes("snack")) return false;
+        } else if (cat !== categoryFilter) return false;
+      }
+      if (!q) return true;
+      return (
         (r.user_name ?? "").toLowerCase().includes(q) ||
-        (r.category ?? "").toLowerCase().includes(q) ||
+        cat.includes(q) ||
         (r.custom_food_name ?? "").toLowerCase().includes(q)
-    );
-  }, [mealLogs, search]);
+      );
+    });
+  }, [mealLogs, search, categoryFilter]);
 
   const handleExport = () => {
     confirm({
       title: "Export data",
-      message: "Export meal tracking data?",
-      confirmLabel: "Export",
-      onConfirm: () => console.log("Export meal data", filteredRows.length),
+      message: `Download a PDF of the meal table as shown (${getDateRangeLabel(dateRange)}, ${filteredRows.length} rows)?`,
+      confirmLabel: "Export PDF",
+      onConfirm: () => {
+        downloadAdminTablePdf({
+          title: "Meal tracking export",
+          periodLabel: getDateRangeLabel(dateRange),
+          columns: ["User", "Category", "Food", "Calories", "Time (UTC)"],
+          rows: filteredRows.map((r) => [
+            r.user_name ?? "—",
+            r.category ?? "—",
+            r.custom_food_name ?? "—",
+            String(r.total_calories ?? 0),
+            new Date(r.meal_time).toISOString(),
+          ]),
+          filenameBase: `diafit-meals-${getDateRangeLabel(dateRange).replace(/\s+/g, "-")}`,
+        });
+      },
     });
   };
 
@@ -346,15 +367,6 @@ export function AdminMealPlanMonitoring() {
                 <option value="lunch">Lunch</option>
                 <option value="dinner">Dinner</option>
                 <option value="snacks">Snacks</option>
-              </select>
-              <select
-                value={timeFilter}
-                onChange={(e) => setTimeFilter(e.target.value)}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-[var(--diafit-blue)]"
-              >
-                <option value="this-week">This Week</option>
-                <option value="this-month">This Month</option>
-                <option value="all">All Time</option>
               </select>
               <button
                 type="button"

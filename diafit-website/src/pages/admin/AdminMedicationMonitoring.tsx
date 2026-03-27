@@ -20,8 +20,9 @@ import { renderPieLabelInside } from "@/components/admin/PieChartCustomLabel";
 import { RechartsDevtools } from "@recharts/devtools";
 import { AdminHeader } from "./AdminLayout";
 import { useAdminConfirm } from "@/contexts/AdminModalContext";
-import { fetchScheduledTasks, fetchMedicationCharts, type ScheduledTaskRow, type DateRange } from "@/lib/adminData";
+import { fetchScheduledTasks, fetchMedicationCharts, getDateRangeLabel, type ScheduledTaskRow, type DateRange } from "@/lib/adminData";
 import { DateRangeFilter } from "@/components/admin/DateRangeFilter";
+import { downloadAdminTablePdf } from "@/lib/adminPdfExport";
 import { Pill, Users, TrendingUp, AlertCircle, Search, Download, Eye } from "lucide-react";
 
 const MEDICATION_TYPES_FALLBACK = [{ name: "Medication", value: 100, color: "#3b82f6" }];
@@ -29,6 +30,7 @@ const MEDICATION_TYPES_FALLBACK = [{ name: "Medication", value: 100, color: "#3b
 export function AdminMedicationMonitoring() {
   const [dateRange, setDateRange] = useState<DateRange>("all");
   const [search, setSearch] = useState("");
+  const [enabledFilter, setEnabledFilter] = useState<"all" | "enabled" | "disabled">("all");
   const [scheduledTasks, setScheduledTasks] = useState<ScheduledTaskRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [commonMedications, setCommonMedications] = useState<{ name: string; activeUsers: number; dosesLogged: number }[]>([]);
@@ -60,21 +62,38 @@ export function AdminMedicationMonitoring() {
   const medicationTasks = useMemo(() => scheduledTasks.filter((t) => t.task_type === "medication"), [scheduledTasks]);
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return medicationTasks;
-    return medicationTasks.filter(
-      (r) =>
+    return medicationTasks.filter((r) => {
+      if (enabledFilter === "enabled" && !r.enabled) return false;
+      if (enabledFilter === "disabled" && r.enabled) return false;
+      if (!q) return true;
+      return (
         (r.user_name ?? "").toLowerCase().includes(q) ||
         (r.name ?? "").toLowerCase().includes(q) ||
         (r.medication_dosage ?? "").toLowerCase().includes(q)
-    );
-  }, [medicationTasks, search]);
+      );
+    });
+  }, [medicationTasks, search, enabledFilter]);
 
   const handleExport = () => {
     confirm({
       title: "Export data",
-      message: "Export medication adherence data?",
-      confirmLabel: "Export",
-      onConfirm: () => console.log("Export medication data", filteredRows.length),
+      message: `Download a PDF of scheduled medication tasks as shown (charts period: ${getDateRangeLabel(dateRange)}; ${filteredRows.length} rows)?`,
+      confirmLabel: "Export PDF",
+      onConfirm: () => {
+        downloadAdminTablePdf({
+          title: "Medication schedules export",
+          periodLabel: `${getDateRangeLabel(dateRange)} (dashboard charts); table = current task list`,
+          columns: ["User", "Medication", "Type", "Time", "Enabled"],
+          rows: filteredRows.map((r) => [
+            r.user_name ?? "—",
+            `${r.name ?? "—"}${r.medication_dosage ? ` (${r.medication_dosage})` : ""}`,
+            r.task_type ?? "—",
+            r.time ?? "—",
+            r.enabled ? "Yes" : "No",
+          ]),
+          filenameBase: `diafit-medications-${getDateRangeLabel(dateRange).replace(/\s+/g, "-")}`,
+        });
+      },
     });
   };
 
@@ -299,6 +318,15 @@ export function AdminMedicationMonitoring() {
                 className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-[var(--diafit-blue)] focus:ring-1 focus:ring-[var(--diafit-blue)]"
               />
             </div>
+            <select
+              value={enabledFilter}
+              onChange={(e) => setEnabledFilter(e.target.value as "all" | "enabled" | "disabled")}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-[var(--diafit-blue)]"
+            >
+              <option value="all">All schedules</option>
+              <option value="enabled">Enabled only</option>
+              <option value="disabled">Disabled only</option>
+            </select>
             <button
               type="button"
               onClick={handleExport}

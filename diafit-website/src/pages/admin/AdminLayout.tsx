@@ -1,11 +1,12 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { Logo } from "@/components/Logo";
 import { AdminModalProvider } from "@/contexts/AdminModalContext";
 import { AdminNotificationsPanel } from "@/components/admin/AdminNotificationsPanel";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
 import { SUPERADMIN_EMAIL } from "@/contexts/AdminAuthContext";
-import { updateAdminLastSeen } from "@/lib/adminData";
+import { updateAdminLastSeen, fetchAdminFeedNotifications, type AdminFeedItem } from "@/lib/adminData";
+import { supabase } from "@/lib/supabase";
 import { AdminLoginView } from "@/pages/admin/AdminLoginView";
 import {
   LayoutDashboard,
@@ -124,6 +125,62 @@ export function AdminHeader({
 }) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const bellRef = useRef<HTMLButtonElement>(null);
+  const [feedItems, setFeedItems] = useState<AdminFeedItem[]>([]);
+  const [feedLoading, setFeedLoading] = useState(true);
+
+  const loadFeed = useCallback(async () => {
+    setFeedLoading(true);
+    const items = await fetchAdminFeedNotifications(40);
+    setFeedItems(items);
+    setFeedLoading(false);
+  }, []);
+
+  useEffect(() => {
+    void loadFeed();
+  }, [loadFeed]);
+
+  useEffect(() => {
+    if (notificationsOpen) void loadFeed();
+  }, [notificationsOpen, loadFeed]);
+
+  useEffect(() => {
+    const t = setInterval(() => void loadFeed(), 120_000);
+    return () => clearInterval(t);
+  }, [loadFeed]);
+
+  useEffect(() => {
+    const client = supabase;
+    if (!client) return;
+    const ch = client
+      .channel("admin-notification-feed")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "contact_submissions" },
+        () => void loadFeed()
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "newsletter_subscribers" },
+        () => void loadFeed()
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "profiles" },
+        () => void loadFeed()
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "website_user_profiles" },
+        () => void loadFeed()
+      )
+      .subscribe();
+    return () => {
+      void client.removeChannel(ch);
+    };
+  }, [loadFeed]);
+
+  const recentUnread =
+    feedItems.filter((i) => Date.now() - new Date(i.created_at).getTime() < 48 * 60 * 60 * 1000).length;
 
   return (
     <header className="flex items-start justify-between border-b border-slate-200 bg-white px-6 py-5">
@@ -149,12 +206,21 @@ export function AdminHeader({
           aria-expanded={notificationsOpen}
         >
           <Bell className="h-5 w-5" />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
+          {recentUnread > 0 && (
+            <span
+              className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
+              aria-hidden
+            >
+              {recentUnread > 9 ? "9+" : recentUnread}
+            </span>
+          )}
         </button>
         <AdminNotificationsPanel
           isOpen={notificationsOpen}
           onClose={() => setNotificationsOpen(false)}
           anchorRef={bellRef}
+          items={feedItems}
+          loading={feedLoading}
         />
         <button
           type="button"

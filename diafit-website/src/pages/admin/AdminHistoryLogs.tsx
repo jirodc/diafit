@@ -19,8 +19,9 @@ import {
 import { RechartsDevtools } from "@recharts/devtools";
 import { AdminHeader } from "./AdminLayout";
 import { useAdminConfirm } from "@/contexts/AdminModalContext";
-import { fetchTaskCompletions, fetchHistoryCharts, type HistoryLogRow, type DateRange } from "@/lib/adminData";
+import { fetchTaskCompletions, fetchHistoryCharts, getDateRangeLabel, type HistoryLogRow, type DateRange } from "@/lib/adminData";
 import { DateRangeFilter } from "@/components/admin/DateRangeFilter";
+import { downloadAdminTablePdf } from "@/lib/adminPdfExport";
 import {
   Search,
   Download,
@@ -82,8 +83,7 @@ function formatLogTimestamp(iso: string): string {
 
 export function AdminHistoryLogs() {
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | "completed" | "skipped">("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | LogStatus>("all");
+  const [completionFilter, setCompletionFilter] = useState<"all" | "completed" | "skipped">("all");
   const [dateRange, setDateRange] = useState<DateRange>("all");
   const [completions, setCompletions] = useState<HistoryLogRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,15 +112,17 @@ export function AdminHistoryLogs() {
   const filteredLogs = useMemo(() => {
     const q = search.trim().toLowerCase();
     return completions.filter((log) => {
-      const matchType = typeFilter === "all" || (typeFilter === "completed" && !log.skipped) || (typeFilter === "skipped" && log.skipped);
-      const matchStatus = statusFilter === "all" || (statusFilter === "success" && !log.skipped) || (statusFilter === "warning" && log.skipped);
+      const matchCompletion =
+        completionFilter === "all" ||
+        (completionFilter === "completed" && !log.skipped) ||
+        (completionFilter === "skipped" && log.skipped);
       const matchSearch =
         !q ||
         (log.user_name ?? "").toLowerCase().includes(q) ||
         (log.task_name ?? "").toLowerCase().includes(q);
-      return matchType && matchStatus && matchSearch;
+      return matchCompletion && matchSearch;
     });
-  }, [completions, search, typeFilter, statusFilter]);
+  }, [completions, search, completionFilter]);
 
   const completedCount = completions.filter((c) => !c.skipped).length;
   const skippedCount = completions.filter((c) => c.skipped).length;
@@ -128,9 +130,22 @@ export function AdminHistoryLogs() {
   const handleExport = () => {
     confirm({
       title: "Export logs",
-      message: "Export history logs?",
-      confirmLabel: "Export",
-      onConfirm: () => console.log("Export logs", filteredLogs.length),
+      message: `Download a PDF of task completions as shown (${getDateRangeLabel(dateRange)}, ${filteredLogs.length} rows)?`,
+      confirmLabel: "Export PDF",
+      onConfirm: () => {
+        downloadAdminTablePdf({
+          title: "Task completion history",
+          periodLabel: getDateRangeLabel(dateRange),
+          columns: ["Status", "Task", "User", "Completed at (UTC)"],
+          rows: filteredLogs.map((log) => [
+            log.skipped ? "Skipped" : "Completed",
+            log.task_name ?? "—",
+            log.user_name ?? "—",
+            new Date(log.completed_at).toISOString(),
+          ]),
+          filenameBase: `diafit-history-${getDateRangeLabel(dateRange).replace(/\s+/g, "-")}`,
+        });
+      },
     });
   };
 
@@ -288,22 +303,13 @@ export function AdminHistoryLogs() {
           </div>
           <div className="flex flex-wrap gap-2">
             <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as "all" | "completed" | "skipped")}
+              value={completionFilter}
+              onChange={(e) => setCompletionFilter(e.target.value as "all" | "completed" | "skipped")}
               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-[var(--diafit-blue)]"
             >
-              <option value="all">All</option>
-              <option value="completed">Completed</option>
-              <option value="skipped">Skipped</option>
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as "all" | LogStatus)}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-[var(--diafit-blue)]"
-            >
-              <option value="all">All Status</option>
-              <option value="success">Success</option>
-              <option value="warning">Warning</option>
+              <option value="all">All completions</option>
+              <option value="completed">Completed only</option>
+              <option value="skipped">Skipped only</option>
             </select>
             <button
               type="button"
