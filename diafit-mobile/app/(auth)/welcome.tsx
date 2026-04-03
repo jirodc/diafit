@@ -11,35 +11,20 @@ import {
   Alert,
 } from 'react-native';
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
-import { makeRedirectUri } from 'expo-auth-session';
 import Constants from 'expo-constants';
 import { supabase } from '../../lib/supabase';
+import { completeOAuthRedirect } from '../../lib/oauthSession';
 
 WebBrowser.maybeCompleteAuthSession();
 
 const PROFILE_KEY = '@diafit_profile_complete';
-
-function parseSessionFromUrl(url: string): { access_token: string; refresh_token: string } | null {
-  try {
-    const hashIdx = url.indexOf('#');
-    if (hashIdx === -1) return null;
-    const fragment = url.substring(hashIdx + 1);
-    const params = new URLSearchParams(fragment);
-    const access_token = params.get('access_token');
-    const refresh_token = params.get('refresh_token');
-    if (access_token && refresh_token) return { access_token, refresh_token };
-    return null;
-  } catch {
-    return null;
-  }
-}
 
 export default function WelcomeScreen() {
   const router = useRouter();
@@ -53,17 +38,23 @@ export default function WelcomeScreen() {
   const [oauthLoading, setOauthLoading] = useState<'google' | 'facebook' | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Handle OAuth redirect when user returns from browser
+  // OAuth PKCE / recovery when returning via deep link (browser hands off to app)
   useEffect(() => {
     const handleDeepLink = async (event: { url: string }) => {
-      const sessionParams = parseSessionFromUrl(event.url);
-      if (!sessionParams) return;
       try {
-        const { error } = await supabase.auth.setSession(sessionParams);
-        if (error) throw error;
-        router.replace('/');
+        const result = await completeOAuthRedirect(supabase, event.url);
+        if (result === null) return;
+        if (!result.ok) {
+          if (__DEV__) console.warn('Auth deep link:', result.message);
+          return;
+        }
+        if (result.navigate === 'reset-password') {
+          router.replace('/(auth)/reset-password' as Href);
+        } else {
+          router.replace('/');
+        }
       } catch (e) {
-        if (__DEV__) console.error('OAuth session error:', e);
+        if (__DEV__) console.error('Auth deep link error:', e);
       }
     };
     const sub = Linking.addEventListener('url', handleDeepLink);
@@ -74,13 +65,12 @@ export default function WelcomeScreen() {
     setErrorMessage('');
     setOauthLoading(provider);
     try {
-      // In Expo Go, custom scheme isn't registered → Safari can't open diafitmobile:// and shows "couldn't connect".
-      // Use default redirect (tunnel URL when using expo start --tunnel) so Safari loads a real https page.
+      // Must match entries in Supabase → Authentication → URL Configuration → Redirect URLs.
       const isExpoGo = Constants.appOwnership === 'expo';
       const redirectTo = isExpoGo
-        ? makeRedirectUri({ path: 'auth/callback' })
-        : makeRedirectUri({ scheme: 'diafitmobile', path: 'auth/callback' });
-      if (__DEV__) console.log('OAuth redirect URL (add this in Supabase if needed):', redirectTo);
+        ? Linking.createURL('/auth/callback')
+        : Linking.createURL('/auth/callback', { scheme: 'diafitmobile' });
+      if (__DEV__) console.log('OAuth redirect URL (paste into Supabase Redirect URLs):', redirectTo);
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: { redirectTo, skipBrowserRedirect: true },
@@ -89,13 +79,22 @@ export default function WelcomeScreen() {
       const url = data?.url;
       if (!url) throw new Error('No OAuth URL returned');
       const res = await WebBrowser.openAuthSessionAsync(url, redirectTo);
-      if (res.type === 'success' && res.url) {
-        const sessionParams = parseSessionFromUrl(res.url);
-        if (sessionParams) {
-          const { error: sessionError } = await supabase.auth.setSession(sessionParams);
-          if (sessionError) throw sessionError;
-          router.replace('/');
-        }
+      if (res.type !== 'success' || !res.url) {
+        if (res.type === 'cancel' || res.type === 'dismiss') return;
+        return;
+      }
+      const completed = await completeOAuthRedirect(supabase, res.url);
+      if (completed === null) {
+        setErrorMessage('Could not read the sign-in response. Check that your redirect URL is allowed in Supabase.');
+        return;
+      }
+      if (!completed.ok) {
+        throw new Error(completed.message);
+      }
+      if (completed.navigate === 'reset-password') {
+        router.replace('/(auth)/reset-password' as Href);
+      } else {
+        router.replace('/');
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : `${provider} sign-in failed. Try again.`;
@@ -282,7 +281,11 @@ export default function WelcomeScreen() {
               </View>
 
               {!isSignUp && (
-                <Pressable className="self-end mb-4" hitSlop={8}>
+                <Pressable
+                  className="self-end mb-4"
+                  hitSlop={8}
+                  onPress={() => router.push('/(auth)/forgot-password' as Href)}
+                >
                   <Text className="text-sm text-[#3B82F6] font-medium">
                     Forgot Password?
                   </Text>

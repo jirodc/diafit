@@ -4,3 +4,7 @@
 
 [functions.create-website-user]
 verify_jwt = false
+
+# JWT validated inside function (same pattern as delete-user).
+[functions.diabot-chat]
+verify_jwt = false

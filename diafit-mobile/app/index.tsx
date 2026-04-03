@@ -1,8 +1,10 @@
 import { View, ActivityIndicator } from 'react-native';
 import React, { useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
+import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
+import { completeOAuthRedirect } from '../lib/oauthSession';
 
 const PROFILE_KEY = '@diafit_profile_complete';
 const ONBOARDING_KEY = '@diafit_onboarding_complete';
@@ -14,9 +16,19 @@ export default function IndexScreen() {
     const checkAuthAndOnboarding = async () => {
       try {
         // To see onboarding again: set forceOnboardingInDev = true (and reload), and ensure you're signed out.
-        const forceOnboardingInDev = true;
+        const forceOnboardingInDev = false;
         if (__DEV__ && forceOnboardingInDev) {
           await AsyncStorage.multiRemove([ONBOARDING_KEY, PROFILE_KEY]);
+        }
+
+        const initialUrl = await Linking.getInitialURL();
+        if (initialUrl) {
+          const oauthResult = await completeOAuthRedirect(supabase, initialUrl);
+          if (oauthResult?.ok && oauthResult.navigate === 'reset-password') {
+            router.replace('/(auth)/reset-password' as Href);
+            return;
+          }
+          // OAuth PKCE / implicit: session is established; fall through to session checks below
         }
 
         const { data: { session } } = await supabase.auth.getSession();
